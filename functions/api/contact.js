@@ -100,7 +100,16 @@ export async function onRequest(context) {
       `https://formsubmit.co/ajax/${encodeURIComponent(RECIPIENT_EMAIL)}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        // FormSubmit's AJAX endpoint rejects server-side calls that lack a
+        // browser-style Referer/Origin (returns a misleading "open through a web
+        // server" error). Send a fixed form URL so activation stays tied to one
+        // stable form regardless of which page (apex vs www) the visitor used.
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Referer: "https://tagtorack.com/contact",
+          Origin: "https://tagtorack.com",
+        },
         body: JSON.stringify(fsPayload),
       },
       FETCH_TIMEOUT_MS,
