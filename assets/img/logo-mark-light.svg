@@ -1,0 +1,15 @@
+<svg viewBox="0 0 64 70" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tag to Rack">
+  <path d="M21.6 18.5 L17.3 27 Q15.8 35 17.6 44 Q21.6 47 25.6 44 Q27.4 35 25.9 27 L21.6 18.5 Z" fill="#9eb189" stroke="#efe7d8" stroke-width="1.4" stroke-linejoin="round"></path>
+  <path d="M32 18 L27.4 27 Q25.7 37 27.6 48 Q32 51.5 36.4 48 Q38.3 37 36.6 27 L32 18 Z" fill="#d8a0a6" stroke="#efe7d8" stroke-width="1.4" stroke-linejoin="round"></path>
+  <path d="M42.4 18.5 L38.1 27 Q36.6 35 38.4 44 Q42.4 47 46.4 44 Q48.2 35 46.7 27 L42.4 18.5 Z" fill="#7f9bc9" stroke="#efe7d8" stroke-width="1.4" stroke-linejoin="round"></path>
+  <path d="M16.5 21 L21.6 16 L26.7 21" stroke="#efe7d8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M26.9 20.5 L32 15.5 L37.1 20.5" stroke="#efe7d8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M37.3 21 L42.4 16 L47.5 21" stroke="#efe7d8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+  <line x1="11" y1="17" x2="53" y2="17" stroke="#efe7d8" stroke-width="3.2" stroke-linecap="round"></line>
+  <line x1="14.5" y1="17.5" x2="14.5" y2="58" stroke="#efe7d8" stroke-width="3" stroke-linecap="round"></line>
+  <line x1="49.5" y1="17.5" x2="49.5" y2="58" stroke="#efe7d8" stroke-width="3" stroke-linecap="round"></line>
+  <path d="M14.5 58 L9 62" stroke="#efe7d8" stroke-width="3" stroke-linecap="round"></path>
+  <path d="M14.5 58 L20 62" stroke="#efe7d8" stroke-width="3" stroke-linecap="round"></path>
+  <path d="M49.5 58 L44 62" stroke="#efe7d8" stroke-width="3" stroke-linecap="round"></path>
+  <path d="M49.5 58 L55 62" stroke="#efe7d8" stroke-width="3" stroke-linecap="round"></path>
+</svg>

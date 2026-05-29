@@ -1,0 +1,30 @@
+# Claude Code local settings
+.claude/
+
+# Local secrets (never commit)
+.dev.vars
+*.env
+.env*
+!.env.example
+
+# Local-only assets that shouldn't ship
+uploads/
+.thumbnail
+
+# Build / dependency dirs (future-proof)
+node_modules/
+dist/
+build/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Wrangler local state
+.wrangler/

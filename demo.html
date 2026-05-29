@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo — Tag to Rack</title>
+<meta name="description" content="Watch Tag to Rack turn front/back/tag photos into a structured intake card — then approve it yourself. The AI recommends; you decide.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body data-screen-label="Demo">
+
+<header class="site-header">
+  <nav class="nav">
+    <a class="brand" href="index.html"><img class="logo-mark" src="assets/img/logo-mark.svg" alt="" width="30" height="33"> Tag&nbsp;to&nbsp;Rack</a>
+    <div class="nav-links">
+      <a href="how-it-works.html">How it works</a>
+      <a href="features.html">Features</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="demo.html" class="active">Demo</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost" href="contact.html">Book a pilot</a>
+      <a class="btn btn-primary" href="contact.html">Get started</a>
+    </div>
+    <button class="nav-toggle" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+  </nav>
+</header>
+
+<section class="hero" style="padding-bottom:clamp(20px,3vw,36px);text-align:center;">
+  <div class="wrap" style="max-width:760px;">
+    <span class="eyebrow center reveal">Interactive demo</span>
+    <h1 class="reveal" style="margin:.3em 0 .4em;">Photos in. A reviewed intake card out.</h1>
+    <p class="lead reveal d1" style="margin-inline:auto;max-width:52ch;">Watch the AI capture the front, back, and tag, then draft a structured card. When it's ready, you make the call — approve, adjust, or pass.</p>
+  </div>
+</section>
+
+<!-- INTERACTIVE DEMO -->
+<section style="padding-top:0;">
+  <div class="wrap" style="max-width:980px;">
+    <div class="reveal">
+      <div class="intake-demo" data-intake-demo>
+        <div>
+          <div class="demo-col-head"><span class="mono">Capture</span><span class="mono">front · back · tag</span></div>
+          <div class="demo-photos">
+            <div class="demo-photo"><div class="demo-photo-img img-blouse"></div><div class="slot-label">Front<small>awaiting</small></div><div class="cap-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+            <div class="demo-photo"><div class="demo-photo-img img-blouse2"></div><div class="slot-label">Back<small>awaiting</small></div><div class="cap-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+            <div class="demo-photo"><div class="demo-photo-img img-tag"></div><div class="slot-label">Tag<small>awaiting</small></div><div class="cap-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4 10-10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+          </div>
+        </div>
+        <div class="demo-card">
+          <div class="demo-card-inner">
+            <div class="demo-scan" aria-hidden="true"></div>
+            <div class="demo-card-top">
+              <div class="title"><span class="chip violet"><span class="dot"></span>Draft</span><strong>Intake card</strong></div>
+              <div class="demo-conf"><div class="mono"><span>AI confidence</span><span>94%</span></div><div class="demo-conf-track"><div class="demo-conf-fill"></div></div></div>
+            </div>
+            <div class="demo-fields">
+              <div class="demo-field"><span class="k">Brand</span><span class="v">Madewell</span></div>
+              <div class="demo-field"><span class="k">Category</span><span class="v">Women's · Blouse</span></div>
+              <div class="demo-field"><span class="k">Size</span><span class="v">M</span></div>
+              <div class="demo-field"><span class="k">Color</span><span class="v">Sage green</span></div>
+              <div class="demo-field"><span class="k">Material</span><span class="v">100% Tencel</span></div>
+              <div class="demo-field"><span class="k">Condition</span><span class="v">Excellent · gently used</span></div>
+              <div class="demo-field span-2"><span class="k">Possible flaws</span><span class="v"><span class="flag">⚑</span> Faint mark near left cuff — review</span></div>
+            </div>
+            <div class="demo-suggestion"><span class="chip ok">Recommend · Consign</span><span class="price">$24–$32 <small>suggested</small></span></div>
+            <div class="demo-pos"><span class="k">POS-ready listing</span><div class="pos-title">Madewell Sage Tencel Blouse — Women's M, EUC</div><div class="pos-desc">Soft sage-green Tencel blouse by Madewell, size M. Excellent used condition; relaxed drape, button front. Minor mark near left cuff noted.</div></div>
+            <div class="demo-approval">
+              <div class="ap-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> AI recommends — a manager makes the final call</div>
+              <div class="ap-btns"><button class="ap-btn ap-approve" data-demo-approve>Approve</button><button class="ap-btn ap-adjust">Adjust</button><button class="ap-btn ap-pass">Pass</button></div>
+            </div>
+          </div>
+          <div class="demo-footer"><span class="demo-status" data-demo-status>Ready</span><button class="demo-replay" data-demo-replay><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 1 2.3 5.6M4 12V7m0 5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Replay</button></div>
+        </div>
+      </div>
+      <p class="center muted" style="margin-top:14px;font-size:.9rem;">Try it: hit <strong>Approve</strong> on the card, or <strong>Replay</strong> to watch the intake run again. Photos shown are illustrative.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SAMPLE RESULTS GALLERY -->
+<section style="background:var(--bg-2);">
+  <div class="wrap">
+    <div class="section-head reveal"><span class="eyebrow">Sample results</span><h2>What the AI drafts across your inventory.</h2><p>Every card is a recommendation your team reviews and a manager approves.</p></div>
+    <div class="grid cols-2">
+      <!-- Kids item -->
+      <div class="card card-pad-lg reveal">
+        <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;">
+          <div class="ph" style="width:96px;height:96px;flex:none;background:linear-gradient(145deg,#e7d3c0,#cdb39a);border:none;"></div>
+          <div>
+            <span class="chip"><span class="dot"></span>Children's resale</span>
+            <h3 style="margin:.5em 0 .1em;font-size:1.2rem;">Patagonia Kids Fleece</h3>
+            <span class="mono" style="color:var(--ink-faint);">Toddler · 3T</span>
+          </div>
+        </div>
+        <div class="demo-fields" style="gap:10px 18px;">
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Brand</span><span class="v">Patagonia</span></div>
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Size</span><span class="v">3T</span></div>
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Color</span><span class="v">Rust orange</span></div>
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Condition</span><span class="v">Very good</span></div>
+          <div class="demo-field revealed span-2" style="opacity:1;transform:none;filter:none;border:none;"><span class="k">Possible flaws</span><span class="v">Light pilling at cuffs — typical wear</span></div>
+        </div>
+        <div class="demo-suggestion revealed" style="opacity:1;transform:none;margin-top:14px;"><span class="chip ok">Recommend · Buy</span><span class="price">$14–$18 <small>suggested</small></span></div>
+        <div class="demo-pos revealed" style="opacity:1;transform:none;"><span class="k">POS-ready listing</span><div class="pos-title">Patagonia Toddler Fleece Jacket — 3T, Rust, VGUC</div><div class="pos-desc">Cozy rust-orange Patagonia fleece, toddler 3T. Very good used condition with light cuff pilling. Full-zip, soft fleece lining.</div></div>
+      </div>
+
+      <!-- Women's item -->
+      <div class="card card-pad-lg reveal d1">
+        <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:16px;">
+          <div class="ph" style="width:96px;height:96px;flex:none;background:linear-gradient(145deg,#cfcabd,#b0a892);border:none;"></div>
+          <div>
+            <span class="chip"><span class="dot"></span>Women's resale</span>
+            <h3 style="margin:.5em 0 .1em;font-size:1.2rem;">Eileen Fisher Cardigan</h3>
+            <span class="mono" style="color:var(--ink-faint);">Women's · L</span>
+          </div>
+        </div>
+        <div class="demo-fields" style="gap:10px 18px;">
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Brand</span><span class="v">Eileen Fisher</span></div>
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Size</span><span class="v">L</span></div>
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Material</span><span class="v">Merino wool</span></div>
+          <div class="demo-field revealed" style="opacity:1;transform:none;filter:none;"><span class="k">Condition</span><span class="v">Excellent</span></div>
+          <div class="demo-field revealed span-2" style="opacity:1;transform:none;filter:none;border:none;"><span class="k">Possible flaws</span><span class="v">None detected — confirm at counter</span></div>
+        </div>
+        <div class="demo-suggestion revealed" style="opacity:1;transform:none;margin-top:14px;"><span class="chip ok">Recommend · Consign</span><span class="price">$38–$48 <small>suggested</small></span></div>
+        <div class="demo-pos revealed" style="opacity:1;transform:none;"><span class="k">POS-ready listing</span><div class="pos-title">Eileen Fisher Merino Cardigan — Women's L, EUC</div><div class="pos-desc">Classic Eileen Fisher merino wool cardigan, size L. Excellent used condition, open front, fine-gauge knit. A wardrobe staple.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap"><div class="cta-band reveal">
+    <h2>Run it with your own inventory.</h2>
+    <p>In a pilot, we point the AI at your real items and tune it to your buying rules and pricing rubric.</p>
+    <div class="hero-cta"><a class="btn btn-primary btn-lg" href="contact.html">Book a pilot <span class="arrow">→</span></a><a class="btn btn-ghost btn-lg" href="how-it-works.html">How it works</a></div>
+  </div></div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="index.html"><img class="logo-mark" src="assets/img/logo-mark-light.svg" alt="" width="26" height="28"> Tag&nbsp;to&nbsp;Rack</a>
+        <p>AI intake, pricing, and listing support for resale clothing stores. The AI recommends — your manager approves.</p>
+      </div>
+      <div><h4>Product</h4><a href="how-it-works.html">How it works</a><a href="features.html">Features</a><a href="demo.html">Demo</a><a href="pricing.html">Pricing</a></div>
+      <div><h4>Company</h4><a href="contact.html">Contact</a><a href="contact.html">Book a pilot</a></div>
+      <div><h4>Legal</h4><a href="privacy.html">Privacy &amp; data</a><a href="terms.html">Terms &amp; disclaimers</a></div>
+    </div>
+    <div class="footer-bottom">
+      <span class="mono">© 2026 Tag to Rack · Early-stage pilot</span>
+      <span class="mono">AI prepares recommendations · managers approve all decisions</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/site.js"></script>
+</body>
+</html>
