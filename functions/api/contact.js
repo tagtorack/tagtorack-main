@@ -99,7 +99,6 @@ export async function onRequest(context) {
   if (RECIPIENT_SMS_GATEWAY) fsForm.set("_cc", RECIPIENT_SMS_GATEWAY);
 
   let emailOk = false;
-  let fsDebug = { status: 0, snippet: "" };
   try {
     const r = await fetchWithTimeout(
       `https://formsubmit.co/${encodeURIComponent(RECIPIENT_EMAIL)}`,
@@ -113,18 +112,17 @@ export async function onRequest(context) {
       },
       FETCH_TIMEOUT_MS,
     );
-    const text = await r.text().catch(() => "");
-    fsDebug = { status: r.status, snippet: text.slice(0, 200) };
     if (r.ok) {
+      const text = await r.text().catch(() => "");
       // A 200 that still contains an "Activate Form" page means the recipient
       // address isn't confirmed yet — treat that as a failure, not a false success.
       emailOk = !/needs activation|activate (your )?form/i.test(text);
       if (!emailOk) console.error("contact: formsubmit recipient not activated");
     } else {
+      // Non-2xx includes 429 (rate limit) — surfaced to the client as a retryable error.
       console.error("contact: formsubmit non-2xx", r.status);
     }
   } catch (e) {
-    fsDebug = { status: -1, snippet: String(e).slice(0, 200) };
     console.error("contact: formsubmit threw", String(e));
   }
 
@@ -151,6 +149,6 @@ export async function onRequest(context) {
     }
   }
 
-  if (!emailOk) return json(502, { ok: false, error: "email_send_failed", debug: fsDebug });
+  if (!emailOk) return json(502, { ok: false, error: "email_send_failed" });
   return json(200, { ok: true, email: emailOk, sms: smsOk });
 }
