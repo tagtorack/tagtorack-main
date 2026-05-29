@@ -79,45 +79,42 @@ export async function onRequest(context) {
     return json(500, { ok: false, error: "server_misconfigured" });
   }
 
-  // 1) Email via FormSubmit
-  const fsPayload = {
-    name,
-    store,
-    email,
-    phone: phone || "(not provided)",
-    preferred_contact: pref,
-    notes: notes || "(none)",
-    _subject: `Tag to Rack — demo request from ${name} (${store})`,
-    _replyto: email,
-    _template: "table",
-    _captcha: "false",
-  };
-  if (RECIPIENT_SMS_GATEWAY) fsPayload._cc = RECIPIENT_SMS_GATEWAY;
+  // 1) Email via FormSubmit.
+  // NOTE: We use FormSubmit's STANDARD endpoint (form-encoded), NOT the /ajax/
+  // one. The AJAX endpoint requires a browser Referer/Origin header — but those
+  // are "forbidden headers" that the Cloudflare Workers runtime silently strips,
+  // so AJAX always fails server-side ("open through a web server" error). The
+  // standard endpoint accepts server-side POSTs without a Referer.
+  const fsForm = new URLSearchParams();
+  fsForm.set("name", name);
+  fsForm.set("store", store);
+  fsForm.set("email", email);
+  fsForm.set("phone", phone || "(not provided)");
+  fsForm.set("preferred_contact", pref);
+  fsForm.set("notes", notes || "(none)");
+  fsForm.set("_subject", `Tag to Rack — demo request from ${name} (${store})`);
+  fsForm.set("_replyto", email);
+  fsForm.set("_template", "table");
+  fsForm.set("_captcha", "false");
+  if (RECIPIENT_SMS_GATEWAY) fsForm.set("_cc", RECIPIENT_SMS_GATEWAY);
 
   let emailOk = false;
   try {
     const r = await fetchWithTimeout(
-      `https://formsubmit.co/ajax/${encodeURIComponent(RECIPIENT_EMAIL)}`,
+      `https://formsubmit.co/${encodeURIComponent(RECIPIENT_EMAIL)}`,
       {
         method: "POST",
-        // FormSubmit's AJAX endpoint rejects server-side calls that lack a
-        // browser-style Referer/Origin (returns a misleading "open through a web
-        // server" error). Send a fixed form URL so activation stays tied to one
-        // stable form regardless of which page (apex vs www) the visitor used.
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Referer: "https://tagtorack.com/contact",
-          Origin: "https://tagtorack.com",
-        },
-        body: JSON.stringify(fsPayload),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: fsForm.toString(),
       },
       FETCH_TIMEOUT_MS,
     );
     if (r.ok) {
-      const body = await r.json().catch(() => ({}));
-      emailOk = String(body.success).toLowerCase() === "true";
-      if (!emailOk) console.error("contact: formsubmit logical fail", JSON.stringify(body));
+      const text = await r.text().catch(() => "");
+      // A 200 that still contains an "Activate Form" page means the recipient
+      // address isn't confirmed yet — treat that as a failure, not a false success.
+      emailOk = !/needs activation|activate (your )?form/i.test(text);
+      if (!emailOk) console.error("contact: formsubmit recipient not activated");
     } else {
       console.error("contact: formsubmit non-2xx", r.status);
     }
