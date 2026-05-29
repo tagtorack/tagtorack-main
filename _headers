@@ -1,0 +1,12 @@
+# Security headers for all routes.
+# Note: Cloudflare Pages does NOT apply _headers to Pages Functions responses
+# (e.g. /api/contact) — those set their own headers in code.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  # CSP shipped in Report-Only first to confirm zero violations before enforcing.
+  # When ready, rename this header to Content-Security-Policy (no other changes).
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'
