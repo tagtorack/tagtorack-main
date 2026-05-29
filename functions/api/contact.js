@@ -73,9 +73,12 @@ export async function onRequest(context) {
   }
 
   const RECIPIENT_EMAIL = env.RECIPIENT_EMAIL;
+  // Env var names are case-sensitive; accept the canonical name and the
+  // mixed-case "Resend_API_Key" that was set in the dashboard.
+  const RESEND_API_KEY = env.RESEND_API_KEY || env.Resend_API_Key;
   const FROM = env.FROM_EMAIL || "Tag to Rack <noreply@tagtorack.com>";
 
-  if (!RECIPIENT_EMAIL || !env.RESEND_API_KEY) {
+  if (!RECIPIENT_EMAIL || !RESEND_API_KEY) {
     console.error("contact: missing RECIPIENT_EMAIL or RESEND_API_KEY");
     return json(500, { ok: false, error: "server_misconfigured" });
   }
