@@ -1,0 +1,13 @@
+{
+  // Cloudflare Pages configuration for the Tag to Rack marketing site.
+  // Pinning this here means the Cloudflare build always treats the repo as a
+  // Pages project (static HTML at the root + the functions/ directory for the
+  // /api/* endpoints) instead of defaulting to a Worker. This is what prevents
+  // the "Could not detect a directory containing static files" deploy error.
+  //
+  // Static files live at the repo root, so the build output directory is ".".
+  // Files listed in .assetsignore (.claude, docs, uploads, etc.) are excluded.
+  "name": "tagtorack",
+  "pages_build_output_dir": ".",
+  "compatibility_date": "2025-05-01"
+}
