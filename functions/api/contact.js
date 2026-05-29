@@ -1,6 +1,8 @@
 // functions/api/contact.js
-// Relays contact form to email (FormSubmit) and SMS (TextBelt + optional gateway).
+// Sends the contact form to email via Resend (authenticated API — reliable from
+// Cloudflare Workers, unlike free form-relay services that block datacenter IPs).
 // Hardened: method+origin+content-type checks, honeypot, size caps, timeouts.
+// Required env: RESEND_API_KEY, RECIPIENT_EMAIL. Optional: FROM_EMAIL.
 
 const MAX_FIELD = 2000;
 const MAX_TOTAL = 6000;
@@ -71,84 +73,55 @@ export async function onRequest(context) {
   }
 
   const RECIPIENT_EMAIL = env.RECIPIENT_EMAIL;
-  const RECIPIENT_PHONE = (env.RECIPIENT_PHONE || "").replace(/\D/g, "");
-  const RECIPIENT_SMS_GATEWAY = (env.RECIPIENT_SMS_GATEWAY || "").trim();
+  const FROM = env.FROM_EMAIL || "Tag to Rack <noreply@tagtorack.com>";
 
-  if (!RECIPIENT_EMAIL) {
-    console.error("contact: RECIPIENT_EMAIL not set");
+  if (!RECIPIENT_EMAIL || !env.RESEND_API_KEY) {
+    console.error("contact: missing RECIPIENT_EMAIL or RESEND_API_KEY");
     return json(500, { ok: false, error: "server_misconfigured" });
   }
 
-  // 1) Email via FormSubmit.
-  // NOTE: We use FormSubmit's STANDARD endpoint (form-encoded), NOT the /ajax/
-  // one. The AJAX endpoint requires a browser Referer/Origin header — but those
-  // are "forbidden headers" that the Cloudflare Workers runtime silently strips,
-  // so AJAX always fails server-side ("open through a web server" error). The
-  // standard endpoint accepts server-side POSTs without a Referer.
-  const fsForm = new URLSearchParams();
-  fsForm.set("name", name);
-  fsForm.set("store", store);
-  fsForm.set("email", email);
-  fsForm.set("phone", phone || "(not provided)");
-  fsForm.set("preferred_contact", pref);
-  fsForm.set("notes", notes || "(none)");
-  fsForm.set("_subject", `Tag to Rack — demo request from ${name} (${store})`);
-  fsForm.set("_replyto", email);
-  fsForm.set("_template", "table");
-  fsForm.set("_captcha", "false");
-  if (RECIPIENT_SMS_GATEWAY) fsForm.set("_cc", RECIPIENT_SMS_GATEWAY);
+  // Build the notification email. Escape user input before embedding in HTML.
+  const esc = (s) =>
+    String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const row = (k, v) =>
+    `<tr><td style="padding:4px 14px 4px 0;color:#666;">${k}</td><td style="padding:4px 0;"><strong>${esc(v)}</strong></td></tr>`;
+  const html = `<h2 style="font-family:sans-serif;">New demo request — Tag to Rack</h2>
+    <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse;">
+      ${row("Name", name)}
+      ${row("Store", store)}
+      ${row("Email", email)}
+      ${row("Phone", phone || "(not provided)")}
+      ${row("Preferred contact", pref)}
+      ${row("Notes", notes || "(none)")}
+    </table>`;
 
+  // Send via Resend's authenticated API (works reliably from the Worker).
   let emailOk = false;
   try {
     const r = await fetchWithTimeout(
-      `https://formsubmit.co/${encodeURIComponent(RECIPIENT_EMAIL)}`,
+      "https://api.resend.com/emails",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "Mozilla/5.0 (compatible; TagToRackContact/1.0)",
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
         },
-        body: fsForm.toString(),
+        body: JSON.stringify({
+          from: FROM,
+          to: [RECIPIENT_EMAIL],
+          reply_to: email,
+          subject: `Tag to Rack — demo request from ${name} (${store})`,
+          html,
+        }),
       },
       FETCH_TIMEOUT_MS,
     );
-    if (r.ok) {
-      const text = await r.text().catch(() => "");
-      // A 200 that still contains an "Activate Form" page means the recipient
-      // address isn't confirmed yet — treat that as a failure, not a false success.
-      emailOk = !/needs activation|activate (your )?form/i.test(text);
-      if (!emailOk) console.error("contact: formsubmit recipient not activated");
-    } else {
-      // Non-2xx includes 429 (rate limit) — surfaced to the client as a retryable error.
-      console.error("contact: formsubmit non-2xx", r.status);
-    }
+    emailOk = r.ok; // Resend returns 200 + { id } on success
+    if (!emailOk) console.error("contact: resend non-2xx", r.status, await r.text().catch(() => ""));
   } catch (e) {
-    console.error("contact: formsubmit threw", String(e));
-  }
-
-  // 2) Best-effort SMS via TextBelt
-  let smsOk = false;
-  if (RECIPIENT_PHONE) {
-    const e164 = RECIPIENT_PHONE.length === 10 ? `1${RECIPIENT_PHONE}` : RECIPIENT_PHONE;
-    const smsBody = `Tag to Rack: demo request from ${name} (${store}). Reply via email: ${email}`;
-    try {
-      const r = await fetchWithTimeout(
-        "https://textbelt.com/text",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ phone: e164, message: smsBody, key: "textbelt" }).toString(),
-        },
-        FETCH_TIMEOUT_MS,
-      );
-      const result = await r.json().catch(() => ({}));
-      smsOk = !!result.success;
-      if (!smsOk) console.warn("contact: textbelt failed", JSON.stringify(result));
-    } catch (e) {
-      console.warn("contact: textbelt threw", String(e));
-    }
+    console.error("contact: resend threw", String(e));
   }
 
   if (!emailOk) return json(502, { ok: false, error: "email_send_failed" });
-  return json(200, { ok: true, email: emailOk, sms: smsOk });
+  return json(200, { ok: true, email: emailOk });
 }
