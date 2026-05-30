@@ -7,7 +7,15 @@
   //
   // Static files live at the repo root, so the build output directory is ".".
   // Files listed in .assetsignore (.claude, docs, uploads, etc.) are excluded.
-  "name": "tagtorack",
+  "name": "tag-to-rack",
   "pages_build_output_dir": ".",
-  "compatibility_date": "2025-05-01"
+  "compatibility_date": "2025-05-01",
+
+  // Workers KV namespace for submit-flow rate limiting (functions/submit/api/start.js).
+  // Used by `wrangler pages dev` locally. For PRODUCTION, this same namespace must
+  // also be bound in the Cloudflare dashboard (tag-to-rack is a direct-upload project):
+  //   Workers & Pages -> tag-to-rack -> Settings -> Functions -> KV namespace bindings.
+  "kv_namespaces": [
+    { "binding": "TT_SUBMIT_RL", "id": "53a0c02734454764abf96e01836e608b" }
+  ]
 }
