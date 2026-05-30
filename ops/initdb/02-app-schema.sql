@@ -1,3 +1,9 @@
+-- The docker entrypoint runs each initdb file as a separate psql invocation
+-- connected to POSTGRES_DB (=n8n). 01-create-dbs.sql creates tagtorack_app, but
+-- a \connect in one file does NOT carry to the next — so 02 and 03 must each
+-- switch explicitly or their tables land in the n8n database.
+\connect tagtorack_app
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS citext;

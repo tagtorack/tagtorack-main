@@ -1,5 +1,7 @@
 -- 03-submit-schema.sql — TagtoRack Submit (Phase 12)
 -- Additive to 02-app-schema.sql. Reuses pgcrypto, citext, audit_log.
+-- Must \connect explicitly: each initdb file is its own psql session (see 02).
+\connect tagtorack_app
 
 -- Merchants. Created when a store onboards. rule_set is the JSONB the AI reads;
 -- the projected columns (accepted_categories, brand_allowlist, etc.) are
