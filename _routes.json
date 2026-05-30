@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "include": ["/api/*", "/submit/*"],
+  "exclude": [
+    "/submit/index.html",
+    "/submit/privacy.html",
+    "/submit/assets/*"
+  ]
+}

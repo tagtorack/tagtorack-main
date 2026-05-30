@@ -1,0 +1,12 @@
+# Cloudflare Pages redirects file
+# Reference: https://developers.cloudflare.com/pages/configuration/redirects/
+#
+# Format: <source>  <destination>  <status>
+# Status 301 = permanent. Use 302 only for temporary.
+
+# Bare submit.tagtorack.com → main marketing site (sellers should arrive via /m/<slug>)
+https://submit.tagtorack.com/  https://tagtorack.com/  302
+
+# Anyone hitting /submit on the apex tagtorack.com gets redirected to the submit subdomain
+/submit  https://submit.tagtorack.com/  301
+/submit/  https://submit.tagtorack.com/  301

@@ -63,3 +63,32 @@ tag-to-rack/
 | Hosting        | Any static host                |
 
 All open source / free tier.
+
+---
+
+## Backend & Operations
+
+The site is more than static pages — it ships **Cloudflare Pages Functions** (`functions/`) and a
+self-hosted **n8n + Postgres** automation stack (`ops/`).
+
+**Pages Functions (`functions/`)**
+- `api/contact.js` — contact / "book a pilot" form → Resend email.
+- `submit/[[slug]].js` — server-renders the per-merchant photo-submission portal (`/submit/m/<slug>`).
+- `submit/api/*` — the submit flow: `start` (reserve + presigned R2 upload URLs), `photo-complete`,
+  `finalize`, `merchant` (lookup), `delete` (right-to-delete).
+- `_shared/` — HMAC-signed fanout to n8n (`n8n-fanout.js`), R2 SigV4 presigning (`r2-sign.js`),
+  KV rate limiting + Turnstile (`ratelimit.js`).
+- Secrets live in repo-root `.dev.vars` (local) and the Cloudflare dashboard (prod); KV namespace
+  `TT_SUBMIT_RL` is bound in `wrangler.jsonc` + the dashboard.
+
+**Ops stack (`ops/`)**
+- `docker-compose.yml` — Postgres 16 + n8n (+ Mailpit in the `dev` profile). Secrets in `ops/.env`.
+- `initdb/*.sql` — schema: `02-app-schema.sql` (lead/email operator system) and
+  `03-submit-schema.sql` (merchants, sellers, submissions, photos, AI decisions, decision tokens,
+  drop-off bookings).
+- `n8n/prompts/*.md` — system prompts for the AI workflows (submission vision review, operators).
+- `backup.ps1` — nightly `pg_dump` of both databases with 30-day rotation.
+
+**Submit data-flow:** browser → `submit/api/start` → (HMAC) n8n `submit/start` → Postgres →
+presigned R2 PUT → `photo-complete` → `finalize` → n8n vision review (Gemini) → merchant decision →
+drop-off booking. The n8n workflows that implement this live in the n8n instance (`ops/n8n/workflows/`).

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sell to {{merchant.display_name}} — Tag to Rack Submit</title>
+<meta name="description" content="Snap photos and we'll check if {{merchant.display_name}} wants your item before you make the trip.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/styles.css">
+<link rel="stylesheet" href="/assets/css/components.css">
+<link rel="stylesheet" href="/submit/assets/submit.css">
+<link rel="icon" href="/assets/img/logo-mark.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/img/logo-mark.svg">
+<style>:root { --merchant-accent: {{merchant.brand_color}}; }</style>
+</head>
+<body class="submit-page" data-merchant-slug="{{merchant.slug}}" data-screen="landing">
+
+<header class="site-header submit-header">
+  <nav class="nav">
+    <a class="brand" href="/"><img class="logo-mark" src="/assets/img/logo-mark.svg" alt="" width="30" height="33"> Tag&nbsp;to&nbsp;Rack <small>Submit</small></a>
+    <div class="nav-cta">
+      <a class="btn btn-ghost btn-sm" href="/submit/privacy">Privacy</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ===== Screen 1: Landing ===== -->
+  <section class="submit-screen" data-screen-name="landing">
+    <div class="wrap submit-wrap">
+      <div class="merchant-header">
+        <img class="merchant-logo" src="{{merchant.logo_url}}" alt="{{merchant.display_name}}">
+        <span class="eyebrow center">Sell to</span>
+        <h1 class="merchant-name">{{merchant.display_name}}</h1>
+        <p class="lead muted">{{merchant.public_intro}}</p>
+      </div>
+
+      <div class="card card-pad-lg how-it-works-mini">
+        <h3>How this works</h3>
+        <ol class="steps-list">
+          <li><strong>Snap a few photos</strong> — front, back, and the brand tag.</li>
+          <li><strong>Tell us about the item</strong> — type, size, and what you're hoping to get.</li>
+          <li><strong>We check the fit</strong> — usually under a minute. You'll hear back within 24 hours.</li>
+          <li><strong>If it's a match</strong>, the store will invite you to drop it off for inspection.</li>
+        </ol>
+        <p class="muted small">No drive-out, no guessing. If it's not a fit, you'll know before you leave home.</p>
+      </div>
+
+      <div class="screen-cta">
+        <button class="btn btn-primary btn-lg" type="button" data-next="item-details">Start a submission <span class="arrow">→</span></button>
+        <p class="micro-note muted">Free. Takes about three minutes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Screen 2: Item details ===== -->
+  <section class="submit-screen" data-screen-name="item-details" hidden>
+    <div class="wrap submit-wrap narrow">
+      <span class="eyebrow">Step 1 of 4</span>
+      <h2>Tell us about the item</h2>
+      <p class="muted">Just enough so we know what we're looking at.</p>
+
+      <form class="form-body" id="item-form" novalidate>
+        <div class="form-grid">
+          <div class="field span-2">
+            <label for="item_type">What kind of item is it?</label>
+            <select id="item_type" name="item_type" required>
+              <option value="">— pick one —</option>
+              <!-- populated by submit.js from /submit/api/merchant -->
+            </select>
+          </div>
+
+          <div class="field span-2">
+            <label for="brand">Brand</label>
+            <input id="brand" name="brand" type="text" list="brand-suggestions" placeholder="e.g. Patagonia" autocomplete="off">
+            <datalist id="brand-suggestions">
+              <!-- populated by submit.js from /submit/api/merchant -->
+            </datalist>
+            <small class="field-hint muted">Start typing — pick from the suggestions if you see your brand.</small>
+          </div>
+
+          <div class="field">
+            <label for="size">Size</label>
+            <input id="size" name="size" type="text" placeholder="M, 32x30, 8.5, etc.">
+          </div>
+
+          <div class="field">
+            <label for="asking_price">Asking price (optional)</label>
+            <div class="input-prefix">
+              <span aria-hidden="true">$</span>
+              <input id="asking_price" name="asking_price" type="number" min="0" step="1" placeholder="—">
+            </div>
+          </div>
+
+          <div class="field span-2">
+            <label>Condition (your honest call)</label>
+            <fieldset class="radio-group" name="condition">
+              <label class="radio-option"><input type="radio" name="condition" value="new_with_tags" required><span class="radio-pill"><strong>New with tags</strong><small>Never worn, tags on.</small></span></label>
+              <label class="radio-option"><input type="radio" name="condition" value="excellent" required><span class="radio-pill"><strong>Excellent</strong><small>Looks barely worn.</small></span></label>
+              <label class="radio-option"><input type="radio" name="condition" value="good" required><span class="radio-pill"><strong>Good</strong><small>Light wear, no flaws.</small></span></label>
+              <label class="radio-option"><input type="radio" name="condition" value="fair" required><span class="radio-pill"><strong>Fair</strong><small>Visible wear or small flaws.</small></span></label>
+            </fieldset>
+          </div>
+
+          <div class="field span-2">
+            <label for="notes">Anything we should know? <span class="muted small">(optional)</span></label>
+            <textarea id="notes" name="notes" maxlength="500" placeholder="e.g. 'has a small mark on the left sleeve' or 'never worn, gift'"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="screen-cta sticky-cta">
+      <button class="btn btn-ghost" type="button" data-back="landing">Back</button>
+      <button class="btn btn-primary" type="button" data-next="photos" data-validate="item-form">Next: photos <span class="arrow">→</span></button>
+    </div>
+  </section>
+
+  <!-- ===== Screen 3: Photos ===== -->
+  <section class="submit-screen" data-screen-name="photos" hidden>
+    <div class="wrap submit-wrap narrow">
+      <span class="eyebrow">Step 2 of 4</span>
+      <h2>Photos of the item</h2>
+      <p class="muted">Three photos minimum. More is better. Tap a tile to use your camera.</p>
+
+      <div class="photo-grid">
+        <label class="photo-slot" data-role="front">
+          <input type="file" name="photo_front" accept="image/*" capture="environment" hidden>
+          <div class="photo-slot-empty">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" aria-hidden="true"><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <strong>Front</strong>
+            <small>Required</small>
+          </div>
+          <div class="photo-slot-filled" hidden>
+            <img alt="" class="photo-thumb">
+            <span class="photo-role-badge">Front</span>
+            <button type="button" class="photo-remove" aria-label="Remove photo">×</button>
+          </div>
+        </label>
+
+        <label class="photo-slot" data-role="back">
+          <input type="file" name="photo_back" accept="image/*" capture="environment" hidden>
+          <div class="photo-slot-empty">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" aria-hidden="true"><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <strong>Back</strong>
+            <small>Required</small>
+          </div>
+          <div class="photo-slot-filled" hidden>
+            <img alt="" class="photo-thumb">
+            <span class="photo-role-badge">Back</span>
+            <button type="button" class="photo-remove" aria-label="Remove photo">×</button>
+          </div>
+        </label>
+
+        <label class="photo-slot" data-role="tag">
+          <input type="file" name="photo_tag" accept="image/*" capture="environment" hidden>
+          <div class="photo-slot-empty">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" aria-hidden="true"><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <strong>Brand tag</strong>
+            <small>Required</small>
+          </div>
+          <div class="photo-slot-filled" hidden>
+            <img alt="" class="photo-thumb">
+            <span class="photo-role-badge">Tag</span>
+            <button type="button" class="photo-remove" aria-label="Remove photo">×</button>
+          </div>
+        </label>
+
+        <label class="photo-slot photo-slot-optional" data-role="flaw" data-flaw-ord="1">
+          <input type="file" name="photo_flaw_1" accept="image/*" capture="environment" hidden>
+          <div class="photo-slot-empty">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" aria-hidden="true"><path d="M12 7v10M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <strong>Any flaws?</strong>
+            <small>Optional</small>
+          </div>
+          <div class="photo-slot-filled" hidden>
+            <img alt="" class="photo-thumb">
+            <span class="photo-role-badge">Flaw</span>
+            <button type="button" class="photo-remove" aria-label="Remove photo">×</button>
+          </div>
+        </label>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-sm add-flaw-btn" id="add-flaw" hidden>+ Add another flaw photo</button>
+
+      <p class="muted small photo-tip">Tip: hold your phone steady, good light, and get close enough to see the tag clearly.</p>
+    </div>
+
+    <div class="screen-cta sticky-cta">
+      <button class="btn btn-ghost" type="button" data-back="item-details">Back</button>
+      <button class="btn btn-primary" type="button" data-next="contact" data-min-photos="3" id="photos-next" disabled>Next: contact <span class="arrow">→</span></button>
+    </div>
+  </section>
+
+  <!-- ===== Screen 4: Contact info ===== -->
+  <section class="submit-screen" data-screen-name="contact" hidden>
+    <div class="wrap submit-wrap narrow">
+      <span class="eyebrow">Step 3 of 4</span>
+      <h2>How should we reach you?</h2>
+      <p class="muted">We'll email you when {{merchant.display_name}} has reviewed.</p>
+
+      <form class="form-body" id="contact-form" novalidate>
+        <!-- honeypot -->
+        <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;">
+          <label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+        </div>
+
+        <div class="form-grid">
+          <div class="field span-2">
+            <label for="name">Your name</label>
+            <input id="name" name="name" type="text" required autocomplete="name" placeholder="Alex Rivera">
+          </div>
+          <div class="field span-2">
+            <label for="email">Your email</label>
+            <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@example.com">
+          </div>
+          <div class="field">
+            <label for="phone">Phone <span class="muted small">(optional)</span></label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="(555) 123-4567">
+          </div>
+          <div class="field">
+            <label for="zip">Zip <span class="muted small">(optional)</span></label>
+            <input id="zip" name="zip" type="text" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" placeholder="78701">
+          </div>
+
+          <div class="field span-2 consent-row">
+            <label class="consent-check">
+              <input type="checkbox" name="consent_privacy" required>
+              <span>I've read the <a href="/submit/privacy" target="_blank" rel="noopener">privacy notice</a> and agree to share my submission with {{merchant.display_name}}.</span>
+            </label>
+            <label class="consent-check">
+              <input type="checkbox" name="consent_marketing">
+              <span class="muted small">Optional — let me know about other items {{merchant.display_name}} is looking for.</span>
+            </label>
+          </div>
+
+          <div class="field span-2 turnstile-row">
+            <div class="cf-turnstile" data-sitekey="{{TURNSTILE_SITE_KEY}}"></div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="screen-cta sticky-cta">
+      <button class="btn btn-ghost" type="button" data-back="photos">Back</button>
+      <button class="btn btn-primary" type="button" data-next="review" data-validate="contact-form">Review <span class="arrow">→</span></button>
+    </div>
+  </section>
+
+  <!-- ===== Screen 5: Review ===== -->
+  <section class="submit-screen" data-screen-name="review" hidden>
+    <div class="wrap submit-wrap narrow">
+      <span class="eyebrow">Step 4 of 4</span>
+      <h2>Quick review</h2>
+      <p class="muted">Anything off? Tap a section to fix it.</p>
+
+      <div class="card review-card">
+        <h3>Item</h3>
+        <dl class="review-list" id="review-item"></dl>
+        <button type="button" class="btn btn-ghost btn-sm" data-back="item-details">Edit</button>
+      </div>
+
+      <div class="card review-card">
+        <h3>Photos</h3>
+        <div class="review-photos" id="review-photos"></div>
+        <button type="button" class="btn btn-ghost btn-sm" data-back="photos">Edit</button>
+      </div>
+
+      <div class="card review-card">
+        <h3>Contact</h3>
+        <dl class="review-list" id="review-contact"></dl>
+        <button type="button" class="btn btn-ghost btn-sm" data-back="contact">Edit</button>
+      </div>
+
+      <p data-form-error class="form-error" role="alert" aria-live="polite" hidden></p>
+
+      <div class="upload-status" id="upload-status" hidden>
+        <div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div>
+        <p class="upload-message" id="upload-message">Uploading…</p>
+      </div>
+    </div>
+
+    <div class="screen-cta sticky-cta">
+      <button class="btn btn-ghost" type="button" data-back="contact">Back</button>
+      <button class="btn btn-primary btn-lg" type="button" id="submit-btn">Submit <span class="arrow">→</span></button>
+    </div>
+  </section>
+
+  <!-- ===== Screen 6: Confirmation ===== -->
+  <section class="submit-screen" data-screen-name="confirmation" hidden>
+    <div class="wrap submit-wrap narrow center">
+      <div class="success-check">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><path d="M5 12l4 4L19 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2>Submission received</h2>
+      <p class="lead">Your submission ID is <strong class="mono" id="confirmation-id">—</strong></p>
+      <p class="muted">We'll email you within 24 hours with {{merchant.display_name}}'s response. If it's a match, you'll get a link to schedule a drop-off.</p>
+
+      <div class="confirmation-actions">
+        <a class="btn btn-ghost" id="submit-another" href="/submit/m/{{merchant.slug}}">Submit another item</a>
+        <a class="btn btn-primary" href="/">Back to Tag to Rack</a>
+      </div>
+
+      <p class="muted micro-note">Save your submission ID. You can reply to the confirmation email if you change your mind.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="submit-footer">
+  <div class="wrap">
+    <p class="mono">© 2026 Tag to Rack · <a href="/submit/privacy">Privacy</a></p>
+  </div>
+</footer>
+
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="/submit/assets/submit.js" defer></script>
+</body>
+</html>

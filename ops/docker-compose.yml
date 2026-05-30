@@ -1,0 +1,86 @@
+# C:\AI\Business Owners\TagtoRack\ops\docker-compose.yml
+# Stack: Postgres + n8n + Cal.com + Mailpit (dev profile).
+# Postgres uses host port 5433 (5432 = system, 5434 = pb5_db_play).
+# All secrets in ./.env (gitignored).
+# (No top-level `version:` — obsolete and ignored in Docker Compose v2+.)
+
+x-pg-healthcheck: &pg_healthcheck
+  test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB_N8N}"]
+  interval: 5s
+  timeout: 5s
+  retries: 20
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tt_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB_N8N}
+    # Dev-only host exposure (host 5433 → container 5432). In production, drop
+    # this mapping so Postgres is reachable only on the internal Docker network.
+    ports: ["5433:5432"]
+    volumes:
+      - pg_tagtorack_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck: *pg_healthcheck
+
+  n8n:
+    image: n8nio/n8n:1.74.1
+    container_name: tt_n8n
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${PG_DB_N8N}
+      DB_POSTGRESDB_USER: ${PG_USER}
+      DB_POSTGRESDB_PASSWORD: ${PG_PASSWORD}
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://${N8N_HOST}/
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST}/
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_USER_MANAGEMENT_JWT_SECRET: ${N8N_JWT_SECRET}
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      GENERIC_TIMEZONE: America/Chicago
+      TZ: America/Chicago
+      EXECUTIONS_TIMEOUT: "600"
+      NODE_FUNCTION_ALLOW_EXTERNAL: "cheerio,luxon"
+      TT_AUTOSEND_ENABLED: ${TT_AUTOSEND_ENABLED}
+      TT_DAILY_FLASH_CAP: ${TT_DAILY_FLASH_CAP}
+      TT_DAILY_PRO_CAP: ${TT_DAILY_PRO_CAP}
+      INTAKE_WEBHOOK_SECRET: ${INTAKE_WEBHOOK_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      BRAVE_API_KEY: ${BRAVE_API_KEY}
+      OPERATOR_ESCALATION_EMAIL: ${OPERATOR_ESCALATION_EMAIL}
+      APP_DB_DSN: postgres://${PG_USER}:${PG_PASSWORD}@postgres:5432/${PG_DB_APP}
+      CALCOM_BOOKING_URL: ${CALCOM_BOOKING_URL}
+      CALCOM_WEBHOOK_SECRET: ${CALCOM_WEBHOOK_SECRET}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY}
+    ports: ["5678:5678"]
+    volumes:
+      - n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    container_name: tt_mailpit
+    restart: unless-stopped
+    ports: ["8025:8025", "1025:1025"]
+    profiles: ["dev"]
+
+volumes:
+  pg_tagtorack_data:
+  n8n_data:
