@@ -1,13 +1,12 @@
 // functions/portal/auth.js — GET /portal/auth?t=<raw>
-import { postToN8n } from "../_shared/n8n-fanout.js";
-import { signSession, setCookieHeader, PORTAL_CSP } from "../_shared/portal-session.js";
+import { postToN8n, signSession, setCookieHeader, PORTAL_CSP } from "../_shared/portal-session.js";
 
 const errPage = (msg) =>
   new Response(
     `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/portal/assets/portal.css">` +
     `<div class="wrap"><div class="card"><h2>Sign-in link invalid</h2><p class="muted">${msg}</p>` +
     `<p><a href="/portal">Back to sign in</a></p></div></div>`,
-    { status: 401, headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": PORTAL_CSP } });
+    { status: 401, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Content-Security-Policy": PORTAL_CSP } });
 
 export async function onRequestGet(context) {
   const { request, env } = context;

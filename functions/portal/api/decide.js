@@ -4,6 +4,12 @@ import { requireSession, getCookie, csrfFor, postToN8n } from "../../_shared/por
 const seeOther = (loc, msg) =>
   new Response(null, { status: 303, headers: { Location: loc + (msg ? "?m=" + encodeURIComponent(msg) : "") } });
 
+const forbidden = (msg) =>
+  new Response(msg, {
+    status: 403,
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+  });
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const session = await requireSession(request, env);
@@ -12,12 +18,12 @@ export async function onRequestPost(context) {
   // CSRF: same-origin + token bound to the session cookie.
   const origin = request.headers.get("Origin");
   const url = new URL(request.url);
-  if (origin && new URL(origin).host !== url.host) return new Response("bad origin", { status: 403 });
+  if (origin && new URL(origin).host !== url.host) return forbidden("bad origin");
 
   const form = await request.formData();
   const csrf = String(form.get("csrf") || "");
   const expected = await csrfFor(env, getCookie(request, "tt_portal_session"));
-  if (csrf !== expected) return new Response("bad csrf", { status: 403 });
+  if (csrf !== expected) return forbidden("bad csrf");
 
   const submission_id = String(form.get("submission_id") || "");
   const action = String(form.get("action") || "");
