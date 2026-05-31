@@ -82,7 +82,9 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
+      # Use 127.0.0.1 (not localhost): n8n binds IPv4 loopback only, and busybox
+      # wget resolves "localhost" to ::1 first -> false "unhealthy". (debugged 2026-05-31)
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5678/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
