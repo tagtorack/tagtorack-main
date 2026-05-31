@@ -1,10 +1,11 @@
 {
   "version": 1,
-  "include": ["/api/*", "/submit/*"],
+  "include": ["/api/*", "/submit/*", "/portal/*"],
   "exclude": [
     "/submit/portal",
     "/submit/portal.html",
     "/submit/privacy.html",
-    "/submit/assets/*"
+    "/submit/assets/*",
+    "/portal/assets/*"
   ]
 }
