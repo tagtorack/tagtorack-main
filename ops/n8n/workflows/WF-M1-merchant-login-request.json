@@ -1,0 +1,136 @@
+{
+  "name": "WF-M1 merchant-login-request",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "merchant/login-request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "merchant-login-request-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst email = String(($json.body && $json.body.email) || '').trim().toLowerCase();\nconst raw = crypto.randomBytes(32).toString('hex');\nconst token_hash = crypto.createHash('sha256').update(raw).digest('hex');\nreturn [{ json: { email, raw, token_hash } }];"
+      },
+      "id": "prep",
+      "name": "Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nm AS (SELECT id, contact_email, display_name FROM merchants\n      WHERE contact_email = (SELECT d->>'email' FROM inp) AND status='active' LIMIT 1),\nins AS (\n  INSERT INTO merchant_login_tokens (token_hash, merchant_id, expires_at)\n  SELECT (SELECT d->>'token_hash' FROM inp), m.id, NOW() + INTERVAL '15 minutes' FROM m\n  RETURNING merchant_id\n)\nSELECT (SELECT count(*) FROM m) > 0 AS found,\n       (SELECT contact_email FROM m) AS email,\n       (SELECT display_name FROM m) AS display_name;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ email: $json.email, token_hash: $json.token_hash }) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Mint token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const pg = $json;                       // { found, email, display_name }\nconst raw = $('Prep').first().json.raw;\nconst base = ($env.SUBMIT_PUBLIC_BASE || 'https://tagtorack.com').replace(/\\/$/, '');\nconst link = base + '/portal/auth?t=' + raw;\nconst enabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';\nif (pg.found && enabled) {\n  const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();\n  const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';\n  const subject = 'Your Tag to Rack portal sign-in link';\n  const html = '<div style=\"font-family:sans-serif;max-width:520px\"><h2>Sign in to Tag to Rack</h2>' +\n    '<p>Click to sign in to your store portal. This link expires in 15 minutes and can be used once.</p>' +\n    '<p><a href=\"' + link + '\">Sign in to ' + (pg.display_name || 'your portal') + '</a></p>' +\n    '<p style=\"color:#888;font-size:12px\">If you did not request this, ignore this email.</p></div>';\n  try {\n    if (transport === 'resend') {\n      await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',\n        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },\n        body:{ from: 'Tag to Rack <' + from + '>', to:[pg.email], subject, html }, json:true });\n    } else {\n      await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',\n        headers:{ 'Content-Type':'application/json' },\n        body:{ From:{ Email: from, Name:'Tag to Rack' }, To:[{ Email: pg.email }], Subject: subject, HTML: html }, json:true });\n    }\n  } catch (e) { /* swallow — never reveal send status to the caller */ }\n}\nreturn [{ json: { statusCode: 200, body: { ok: true } } }];"
+      },
+      "id": "send",
+      "name": "Send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Mint token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mint token": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
