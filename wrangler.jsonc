@@ -17,5 +17,11 @@
   //   Workers & Pages -> tag-to-rack -> Settings -> Functions -> KV namespace bindings.
   "kv_namespaces": [
     { "binding": "TT_SUBMIT_RL", "id": "53a0c02734454764abf96e01836e608b" }
-  ]
+  ],
+  // Dev-only placeholder so `wrangler pages dev` picks up PORTAL_SESSION_SECRET
+  // even when the process was started before .dev.vars was written.
+  // The real value must be set as a secret in the Cloudflare dashboard for production.
+  "vars": {
+    "PORTAL_SESSION_SECRET": "dev-portal-secret-change-me-0123456789abcdef"
+  }
 }
