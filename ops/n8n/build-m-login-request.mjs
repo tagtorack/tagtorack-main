@@ -37,6 +37,7 @@ const enabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';
 if (pg.found && enabled) {
   const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();
   const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';
+  const fromAddr = from.includes('<') ? (from.match(/<([^>]+)>/) || [,from])[1] : from;
   const subject = 'Your Tag to Rack portal sign-in link';
   const html = '<div style="font-family:sans-serif;max-width:520px"><h2>Sign in to Tag to Rack</h2>' +
     '<p>Click to sign in to your store portal. This link expires in 15 minutes and can be used once.</p>' +
@@ -46,11 +47,11 @@ if (pg.found && enabled) {
     if (transport === 'resend') {
       await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },
-        body:{ from: 'Tag to Rack <' + from + '>', to:[pg.email], subject, html }, json:true });
+        body:{ from: 'Tag to Rack <' + fromAddr + '>', to:[pg.email], subject, html }, json:true });
     } else {
       await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',
         headers:{ 'Content-Type':'application/json' },
-        body:{ From:{ Email: from, Name:'Tag to Rack' }, To:[{ Email: pg.email }], Subject: subject, HTML: html }, json:true });
+        body:{ From:{ Email: fromAddr, Name:'Tag to Rack' }, To:[{ Email: pg.email }], Subject: subject, HTML: html }, json:true });
     }
   } catch (e) { /* swallow — never reveal send status to the caller */ }
 }

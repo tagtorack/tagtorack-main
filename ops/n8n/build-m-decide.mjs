@@ -42,7 +42,6 @@ SELECT (SELECT id FROM sub) IS NOT NULL AS found,
 
 const notify = `
 const r = $json;
-const action = String(($('Webhook').first().json.body || {}).action || '');
 if (!r.found) return [{ json: { statusCode: 404, body: { ok:false, error:'not_found' } } }];
 if (!r.new_status) {
   // already decided (not in merchant_review) — idempotent no-op, no email
@@ -53,6 +52,7 @@ const enabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';
 if (r.new_status === 'merchant_approved' && enabled) {
   const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();
   const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';
+  const fromAddr = from.includes('<') ? (from.match(/<([^>]+)>/) || [,from])[1] : from;
   const cal = r.calcom_event_url || ($env.CALCOM_BOOKING_URL || '');
   const subject = (r.merchant_name || 'The store') + ' approved your item (' + r.short_id + ')';
   const html = '<div style="font-family:sans-serif;max-width:520px"><h2>Good news, ' + (r.seller_name || 'there') + '</h2>' +
@@ -62,11 +62,11 @@ if (r.new_status === 'merchant_approved' && enabled) {
     if (transport === 'resend') {
       await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },
-        body:{ from:'Tag to Rack <' + from + '>', to:[r.seller_email], subject, html }, json:true });
+        body:{ from:'Tag to Rack <' + fromAddr + '>', to:[r.seller_email], subject, html }, json:true });
     } else {
       await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',
         headers:{ 'Content-Type':'application/json' },
-        body:{ From:{ Email: from, Name:'Tag to Rack' }, To:[{ Email: r.seller_email }], Subject: subject, HTML: html }, json:true });
+        body:{ From:{ Email: fromAddr, Name:'Tag to Rack' }, To:[{ Email: r.seller_email }], Subject: subject, HTML: html }, json:true });
     }
   } catch (e) { /* best effort */ }
 }
