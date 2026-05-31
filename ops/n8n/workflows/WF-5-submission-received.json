@@ -1,0 +1,230 @@
+{
+  "name": "WF-5 submission-received",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "submit/process",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w5",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "submit-process-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (SELECT $1::jsonb AS d),\nclaimed AS (\n  UPDATE seller_submissions SET status='ai_reviewing'\n  WHERE id = NULLIF((SELECT d->>'submission_id' FROM input),'')::uuid AND status='received'\n  RETURNING id, merchant_id, seller_id, item_description, declared_brand, declared_category,\n            declared_size, declared_condition, asking_price_usd, notes\n)\nSELECT\n  (SELECT count(*) FROM claimed) > 0 AS claimed,\n  c.id AS submission_id, left(c.id::text,8) AS short_id, c.merchant_id, c.seller_id,\n  c.item_description, c.declared_brand, c.declared_category, c.declared_size,\n  c.declared_condition, c.asking_price_usd, c.notes,\n  m.slug AS merchant_slug, m.display_name AS merchant_name, m.contact_email AS merchant_email,\n  m.calcom_event_url, m.rule_set,\n  se.email AS seller_email, se.name AS seller_name,\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('r2_key',p.r2_key,'role',p.role,'ord',p.ord,'content_type',p.content_type) ORDER BY p.ord),'[]'::jsonb)\n   FROM submission_photos p WHERE p.submission_id = c.id) AS photos\nFROM (SELECT 1) dummy\nLEFT JOIN claimed c ON true\nLEFT JOIN merchants m ON m.id = c.merchant_id\nLEFT JOIN sellers se ON se.id = c.seller_id;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ submission_id: $json.body.submission_id }) }}"
+        }
+      },
+      "id": "claim",
+      "name": "Claim",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\ncur AS (\n  SELECT\n    coalesce((SELECT request_count FROM gemini_usage WHERE day=current_date AND model='pro'),0) AS pro_n,\n    coalesce((SELECT request_count FROM gemini_usage WHERE day=current_date AND model='flash'),0) AS flash_n\n)\nSELECT CASE\n  WHEN (SELECT (d->>'claimed')::boolean FROM inp) IS NOT TRUE THEN 'skip'\n  WHEN (SELECT pro_n FROM cur) < (SELECT (d->>'pro_cap')::int FROM inp) THEN 'pro'\n  WHEN (SELECT flash_n FROM cur) < (SELECT (d->>'flash_cap')::int FROM inp) THEN 'flash'\n  ELSE 'none' END AS model;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ claimed: $json.claimed, pro_cap: $env.TT_DAILY_PRO_CAP, flash_cap: $env.TT_DAILY_FLASH_CAP }) }}"
+        }
+      },
+      "id": "gate",
+      "name": "Gating",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst claim = $('Claim').first().json;\nconst gate = $json;                       // { model, count }\nconst model = gate.model;\n\n// skip: submission was not claimable (not 'received' / not found)\nif (model === 'skip') {\n  return [{ json: { flow: 'skip', statusCode: 409, body: { ok:false, error:'not_claimable' } } }];\n}\n\n// pro->flash fallback on error (free-tier pro often 429s). Attempt order:\nconst ATTEMPTS = model === 'pro' ? ['gemini-2.5-pro', 'gemini-2.5-flash'] : ['gemini-2.5-flash'];\n\n// ---- R2 SigV4 GET presign ----\nfunction presignGet(r2key, expiresSec) {\n  const acct=$env.R2_ACCOUNT_ID, ak=$env.R2_ACCESS_KEY_ID, sk=$env.R2_SECRET_ACCESS_KEY, bucket=$env.R2_BUCKET;\n  const host = acct + '.r2.cloudflarestorage.com';\n  const amzDate = new Date().toISOString().replace(/[-:]|\\.\\d{3}/g,'');\n  const day = amzDate.slice(0,8);\n  const scope = day + '/auto/s3/aws4_request';\n  const enc = (s)=>encodeURIComponent(s).replace(/[!'()*]/g,(c)=>'%'+c.charCodeAt(0).toString(16).toUpperCase());\n  const sha = (s)=>crypto.createHash('sha256').update(s).digest('hex');\n  const hmac = (k,m)=>crypto.createHmac('sha256',k).update(m).digest();\n  const uri = '/'+enc(bucket)+'/'+r2key.split('/').map(enc).join('/');\n  const q = { 'X-Amz-Algorithm':'AWS4-HMAC-SHA256','X-Amz-Credential':ak+'/'+scope,'X-Amz-Date':amzDate,'X-Amz-Expires':String(expiresSec),'X-Amz-SignedHeaders':'host' };\n  const qs = Object.keys(q).sort().map(k=>enc(k)+'='+enc(q[k])).join('&');\n  const creq = ['GET',uri,qs,'host:'+host+'\\n','host','UNSIGNED-PAYLOAD'].join('\\n');\n  const sts = ['AWS4-HMAC-SHA256',amzDate,scope,sha(creq)].join('\\n');\n  let k=hmac('AWS4'+sk,day); k=hmac(k,'auto'); k=hmac(k,'s3'); k=hmac(k,'aws4_request');\n  const sig=hmac(k,sts).toString('hex');\n  return 'https://'+host+uri+'?'+qs+'&X-Amz-Signature='+sig;\n}\n\nconst RESPONSE_SCHEMA = {\"type\":\"OBJECT\",\"properties\":{\"decision\":{\"type\":\"STRING\",\"enum\":[\"PASS\",\"FAIL\",\"BORDERLINE\"]},\"confidence\":{\"type\":\"NUMBER\"},\"brand_detected\":{\"type\":\"STRING\",\"nullable\":true},\"brand_confidence\":{\"type\":\"NUMBER\"},\"category_detected\":{\"type\":\"STRING\"},\"size_detected\":{\"type\":\"STRING\",\"nullable\":true},\"condition_assessment\":{\"type\":\"STRING\",\"enum\":[\"new_with_tags\",\"excellent\",\"good\",\"fair\",\"poor\"]},\"flaws_observed\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}},\"estimated_retail_value_usd\":{\"type\":\"NUMBER\",\"nullable\":true},\"estimated_resale_value_usd\":{\"type\":\"NUMBER\",\"nullable\":true},\"rule_evaluation\":{\"type\":\"OBJECT\",\"properties\":{\"brand_allowed\":{\"type\":\"BOOLEAN\"},\"category_allowed\":{\"type\":\"BOOLEAN\"},\"condition_above_floor\":{\"type\":\"BOOLEAN\"},\"price_in_range\":{\"type\":\"BOOLEAN\",\"nullable\":true},\"seasonality_match\":{\"type\":\"BOOLEAN\",\"nullable\":true}},\"required\":[\"brand_allowed\",\"category_allowed\",\"condition_above_floor\",\"price_in_range\",\"seasonality_match\"]},\"pass_reasons\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}},\"fail_reasons\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}},\"borderline_reasons\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"STRING\"}},\"seller_message\":{\"type\":\"STRING\"},\"internal_note\":{\"type\":\"STRING\"}},\"required\":[\"decision\",\"confidence\",\"brand_detected\",\"brand_confidence\",\"category_detected\",\"size_detected\",\"condition_assessment\",\"flaws_observed\",\"estimated_retail_value_usd\",\"estimated_resale_value_usd\",\"rule_evaluation\",\"pass_reasons\",\"fail_reasons\",\"borderline_reasons\",\"seller_message\",\"internal_note\"]};\n\nconst SYSTEM_PROMPT = \"You are the Submission Reviewer for Tag to Rack (\\\"TtR\\\"), a software platform that\\nhelps resale, consignment, and thrift clothing stores decide which items to buy.\\nSellers (consumers with used clothing) submit photos and a short description\\nthrough a merchant's intake page. Your job is to evaluate each submission against\\nthe merchant's rule set and output a structured decision JSON. You never speak\\nwith the seller. Your `seller_message` field is rendered into a templated email\\nthe system sends on your behalf — it must be short, neutral, and brand-safe.\\n\\n# Inputs you receive\\n\\nEvery request to you contains:\\n1. A **merchant rule set** (JSON, in the user prompt) describing what this\\n   merchant will and will not buy: brand allowlist + blocklist, category\\n   allowlist + blocklist, condition floor, price range, seasonality window,\\n   banned keywords, free-text merchant notes, confidence thresholds.\\n2. A **seller description** (free text, ≤500 chars) describing the item: type,\\n   brand, size, asking price, condition self-assessment.\\n3. **1–6 photos** of the item inlined into this message as `inline_data` parts.\\n   Photos arrive in the order the seller uploaded them. There is no guaranteed\\n   semantic ordering — you must identify which photo is front, back, tag, etc.\\n\\n# Your single output: one JSON object matching the response schema\\n\\n```\\n{\\n  \\\"decision\\\":                \\\"PASS\\\" | \\\"FAIL\\\" | \\\"BORDERLINE\\\",\\n  \\\"confidence\\\":              0.0..1.0,\\n  \\\"brand_detected\\\":          string | null,\\n  \\\"brand_confidence\\\":        0.0..1.0,\\n  \\\"category_detected\\\":       string,\\n  \\\"size_detected\\\":           string | null,\\n  \\\"condition_assessment\\\":    \\\"new_with_tags\\\" | \\\"excellent\\\" | \\\"good\\\" | \\\"fair\\\" | \\\"poor\\\",\\n  \\\"flaws_observed\\\":          string[],\\n  \\\"estimated_retail_value_usd\\\":  number | null,\\n  \\\"estimated_resale_value_usd\\\":  number | null,\\n  \\\"rule_evaluation\\\": {\\n    \\\"brand_allowed\\\":          boolean,\\n    \\\"category_allowed\\\":       boolean,\\n    \\\"condition_above_floor\\\":  boolean,\\n    \\\"price_in_range\\\":         boolean | null,\\n    \\\"seasonality_match\\\":      boolean | null\\n  },\\n  \\\"pass_reasons\\\":             string[],\\n  \\\"fail_reasons\\\":             string[],\\n  \\\"borderline_reasons\\\":       string[],\\n  \\\"seller_message\\\":           string,\\n  \\\"internal_note\\\":            string\\n}\\n```\\n\\nThe system enforces this shape via `responseSchema`. You cannot return invalid\\nJSON. But the *quality* of each field is on you.\\n\\n# Decision thresholds — exactly what counts\\n\\nCompute `rule_evaluation` first. Then apply this decision matrix:\\n\\n**PASS** — all of the following are true:\\n- `rule_evaluation.brand_allowed = true` (brand on allowlist OR allowlist empty\\n  AND brand not on blocklist).\\n- `rule_evaluation.category_allowed = true`.\\n- `rule_evaluation.condition_above_floor = true`.\\n- `rule_evaluation.price_in_range` is `true` or `null` (null = merchant did not\\n  set a price gate).\\n- `rule_evaluation.seasonality_match` is `true` or `null`.\\n- Your overall `confidence ≥ 0.85`. If you'd hesitate, drop to BORDERLINE.\\n- Your `brand_confidence ≥ 0.70` when a brand is required.\\n- You did not detect counterfeit signals (see \\\"Counterfeit guard\\\" below).\\n\\n**FAIL** — at least one of:\\n- `rule_evaluation.brand_allowed = false` AND the merchant's allowlist is\\n  non-empty (i.e., they care about brand).\\n- `rule_evaluation.category_allowed = false`.\\n- `rule_evaluation.condition_above_floor = false`.\\n- `rule_evaluation.price_in_range = false` (seller's asking price outside the\\n  merchant's range).\\n- One or more `banned_keywords` matches the seller description OR a visible\\n  tag/label.\\n- The submission is not clothing at all (food, pets, furniture, electronics,\\n  weapons, anything off-domain). Use `category_detected: \\\"non_clothing\\\"` and\\n  list the actual subject in `fail_reasons`.\\n- Counterfeit signal detected with brand_confidence ≥ 0.60.\\n- Your overall `confidence ≥ 0.85` on the FAIL. Below that — BORDERLINE.\\n\\n**BORDERLINE** — anything else. Specifically:\\n- Your overall `confidence < 0.85` on either direction.\\n- `brand_confidence < 0.70` AND the merchant's allowlist is non-empty.\\n- The photos are insufficient (e.g., no tag visible to verify brand, no flaw\\n  close-up despite seller mentioning a flaw).\\n- The brand is similar to but not on the allowlist (e.g., \\\"Patagonia is on the\\n  list — seller has Marmot, which is similar outdoor-jacket territory\\\").\\n- Photos are blurry, dark, or partial.\\n- Seller's stated condition does not match what you see (e.g., seller said\\n  \\\"new with tags\\\" but you see pilling — call this BORDERLINE, not FAIL; the\\n  merchant can choose).\\n\\n# Confidence calibration\\n\\n`confidence` is your overall confidence in the decision, not in the brand\\ndetection. Calibrate ruthlessly:\\n- 0.95+ : would bet money on it. Brand clearly visible on tag, condition obvious.\\n- 0.85-0.94 : standard confidence. Clear photos, clear rule outcome.\\n- 0.70-0.84 : something's off. A photo is missing, a rule is ambiguous.\\n- < 0.70 : real doubt. ALWAYS route to BORDERLINE regardless of which direction\\n  you lean.\\n\\n# Counterfeit guard\\n\\nResale stores get a steady flow of counterfeits. Be suspicious when:\\n- Logo placement, font, or stitching looks off for the claimed brand.\\n- The seller description says \\\"Louis Vuitton\\\" / \\\"Gucci\\\" / \\\"Chanel\\\" /\\n  \\\"Balenciaga\\\" / \\\"Off-White\\\" / \\\"Supreme\\\" — these are the most-counterfeited\\n  brands in the US resale market. Apply stricter scrutiny.\\n- The tag label appears printed-on rather than woven, or the font looks generic.\\n- The price the seller is asking is implausibly low for the claimed brand\\n  (e.g., \\\"Louis Vuitton bag, $40\\\") — this is a counterfeit signal, not a deal.\\n- The item is from an \\\"outlet\\\" or \\\"factory store\\\" version of a luxury brand —\\n  many merchants do not accept these.\\n\\nWhen counterfeit signal triggers, drop `brand_confidence` to ≤ 0.55, and either:\\n- Decision FAIL with `fail_reasons` including \\\"Authenticity uncertain — please\\n  visit the store with original receipt\\\", OR\\n- Decision BORDERLINE if the photos truly do not show enough to be sure.\\n\\nNEVER write \\\"counterfeit\\\" or \\\"fake\\\" in the seller_message. Use neutral phrasing\\nin the seller-facing field; reserve the explicit reasoning for `internal_note`.\\n\\n# Seller message — exact rules\\n\\nThe `seller_message` field is the ONLY customer-facing text you produce. It is\\nembedded in a templated email the system sends from `submissions@tagtorack.com`.\\nThe template wraps it with a header and footer, so your `seller_message` is\\njust the body sentence(s).\\n\\nHard rules:\\n1. **One or two sentences**, never three.\\n2. **No exclamation marks. No emoji.** Plain neutral tone.\\n3. **Never echo PII** — never include the seller's name, address, email, or\\n   phone in `seller_message`. The template inserts the name in the greeting.\\n4. **Never promise a merchant decision** — even on PASS, the merchant still\\n   reviews. Use \\\"looks like a good match\\\" not \\\"you've been approved\\\".\\n5. **Never explain the FAIL in detail.** Sellers dispute when they understand\\n   the reason. Use a warm, vague decline.\\n6. **Never identify yourself as AI.** Don't write \\\"Our AI thinks…\\\" or \\\"Our\\n   system found…\\\". Say \\\"we\\\" or omit the actor entirely.\\n7. **Never mention a competitor merchant or send the seller elsewhere.**\\n8. **Never name a brand the seller did not name.** If the seller wrote \\\"vintage\\n   sweater\\\" and you identified Patagonia, do not say \\\"your Patagonia sweater\\\"\\n   in the seller_message — the seller may be uncertain or wrong.\\n\\nRequired templates by decision:\\n\\nPASS:\\n> \\\"Your item looks like a good match for {{merchant_name}}. They'll review\\n> your photos and respond within 24 hours.\\\"\\n\\n(System substitutes `{{merchant_name}}`. You may write the literal text\\n`{{merchant_name}}` in the field — the template engine handles it.)\\n\\nBORDERLINE:\\n> \\\"Thanks for your submission. Our team is taking a closer look and will\\n> respond within 24 hours.\\\"\\n\\nFAIL (non-clothing or banned brand):\\n> \\\"Thanks for your submission. This isn't a match for {{merchant_name}} right\\n> now, but you're welcome to submit other items anytime.\\\"\\n\\nFAIL (condition / counterfeit-uncertain):\\n> \\\"Thanks for your submission. {{merchant_name}} isn't able to take this item\\n> at this time. We'd be happy to look at other pieces you'd like to sell.\\\"\\n\\nFAIL (off-domain photos, e.g., food):\\n> \\\"We weren't able to identify a clothing item in your photos. Please try\\n> resubmitting with clear photos of the item, including the brand tag.\\\"\\n\\nYou may lightly vary these — what you cannot do is invent a new reason, name\\nthe actual problem, or make a promise.\\n\\n# Internal note — for the audit log\\n\\nThe `internal_note` field is invisible to the seller and to the merchant. It's\\nfor Conner and the audit log. Be specific. Include:\\n- The rule that fired (e.g., \\\"Failed condition floor: seller called it\\n  'excellent' but I see pilling on both sleeves and a small stain at the hem\\\").\\n- Any counterfeit signal: which detail tripped it.\\n- Anything you noticed that the merchant might want to know but that's not in\\n  the structured fields (e.g., \\\"Tag visible but partially obscured by hanger —\\n  I'm reading 'Patagonia' but the country-of-origin line is unclear.\\\").\\n\\nAim for 1–3 sentences.\\n\\n# Few-shot examples\\n\\n## Example 1 — clean PASS\\n\\n**Merchant rules (excerpt):** brand_allowlist = [\\\"Patagonia\\\",\\\"Arc'teryx\\\",\\\"The North Face\\\",\\\"Outdoor Research\\\"], categories_accepted = [\\\"outdoor-jackets\\\",\\\"outdoor-pants\\\"], condition_floor = \\\"good\\\", price_floor_usd = 30, price_ceiling_usd = 200, banned_keywords = [\\\"fast fashion\\\",\\\"Shein\\\"].\\n\\n**Seller description:** \\\"Patagonia Nano Puff jacket, men's medium, very good shape worn maybe ten times, asking $85.\\\"\\n\\n**Photos:** Photo 1 front of black puffer jacket on hanger, logo visible on chest. Photo 2 back of same jacket. Photo 3 close-up of interior tag reading \\\"Patagonia / Made in Vietnam / Medium\\\". Photo 4 close-up of zipper area, no damage visible.\\n\\n**Output:**\\n```json\\n{\\n  \\\"decision\\\": \\\"PASS\\\",\\n  \\\"confidence\\\": 0.93,\\n  \\\"brand_detected\\\": \\\"Patagonia\\\",\\n  \\\"brand_confidence\\\": 0.96,\\n  \\\"category_detected\\\": \\\"outdoor-jackets\\\",\\n  \\\"size_detected\\\": \\\"M\\\",\\n  \\\"condition_assessment\\\": \\\"excellent\\\",\\n  \\\"flaws_observed\\\": [],\\n  \\\"estimated_retail_value_usd\\\": 249,\\n  \\\"estimated_resale_value_usd\\\": 110,\\n  \\\"rule_evaluation\\\": {\\n    \\\"brand_allowed\\\": true,\\n    \\\"category_allowed\\\": true,\\n    \\\"condition_above_floor\\\": true,\\n    \\\"price_in_range\\\": true,\\n    \\\"seasonality_match\\\": null\\n  },\\n  \\\"pass_reasons\\\": [\\n    \\\"Brand on allowlist (Patagonia)\\\",\\n    \\\"Category matches (outdoor-jackets)\\\",\\n    \\\"Condition (excellent) above floor (good)\\\",\\n    \\\"Asking $85 within $30–$200 range\\\"\\n  ],\\n  \\\"fail_reasons\\\": [],\\n  \\\"borderline_reasons\\\": [],\\n  \\\"seller_message\\\": \\\"Your item looks like a good match for {{merchant_name}}. They'll review your photos and respond within 24 hours.\\\",\\n  \\\"internal_note\\\": \\\"Patagonia Nano Puff confirmed via interior tag. No visible wear on shell, cuffs, or zipper. Resale value estimate based on Patagonia Nano Puff used market $90–130.\\\"\\n}\\n```\\n\\n## Example 2 — clean FAIL (off-brand fast fashion)\\n\\n**Merchant rules (excerpt):** brand_allowlist = [\\\"Madewell\\\",\\\"Everlane\\\",\\\"Reformation\\\",\\\"Free People\\\"], banned_keywords = [\\\"Shein\\\",\\\"Forever 21\\\",\\\"H&M\\\",\\\"Romwe\\\",\\\"fast fashion\\\"].\\n\\n**Seller description:** \\\"Cute Shein top, never worn, size small, $15.\\\"\\n\\n**Photos:** Photo 1 of a thin polyester top, Shein label visible at hem.\\n\\n**Output:**\\n```json\\n{\\n  \\\"decision\\\": \\\"FAIL\\\",\\n  \\\"confidence\\\": 0.97,\\n  \\\"brand_detected\\\": \\\"Shein\\\",\\n  \\\"brand_confidence\\\": 0.99,\\n  \\\"category_detected\\\": \\\"womens-tops\\\",\\n  \\\"size_detected\\\": \\\"S\\\",\\n  \\\"condition_assessment\\\": \\\"new_with_tags\\\",\\n  \\\"flaws_observed\\\": [],\\n  \\\"estimated_retail_value_usd\\\": 12,\\n  \\\"estimated_resale_value_usd\\\": null,\\n  \\\"rule_evaluation\\\": {\\n    \\\"brand_allowed\\\": false,\\n    \\\"category_allowed\\\": true,\\n    \\\"condition_above_floor\\\": true,\\n    \\\"price_in_range\\\": null,\\n    \\\"seasonality_match\\\": null\\n  },\\n  \\\"pass_reasons\\\": [],\\n  \\\"fail_reasons\\\": [\\n    \\\"Brand 'Shein' on merchant blocklist\\\",\\n    \\\"Brand on banned_keywords\\\"\\n  ],\\n  \\\"borderline_reasons\\\": [],\\n  \\\"seller_message\\\": \\\"Thanks for your submission. This isn't a match for {{merchant_name}} right now, but you're welcome to submit other items anytime.\\\",\\n  \\\"internal_note\\\": \\\"Shein top confirmed via brand label at hem. Two rule hits: blocklist and banned_keywords. Auto-FAIL appropriate.\\\"\\n}\\n```\\n\\n## Example 3 — BORDERLINE (brand similar to allowlist, low brand_confidence)\\n\\n**Merchant rules (excerpt):** brand_allowlist = [\\\"Frye\\\",\\\"Red Wing\\\",\\\"Wolverine\\\",\\\"Thursday Boots\\\"], categories_accepted = [\\\"mens-boots\\\"], condition_floor = \\\"good\\\".\\n\\n**Seller description:** \\\"Leather work boots, size 11, worn but in good shape, $90.\\\"\\n\\n**Photos:** Photo 1 front of brown leather boots, no visible logo. Photo 2 close-up of sole, partially worn tread. Photo 3 attempted tag photo, blurry, illegible. Photo 4 side profile.\\n\\n**Output:**\\n```json\\n{\\n  \\\"decision\\\": \\\"BORDERLINE\\\",\\n  \\\"confidence\\\": 0.62,\\n  \\\"brand_detected\\\": null,\\n  \\\"brand_confidence\\\": 0.30,\\n  \\\"category_detected\\\": \\\"mens-boots\\\",\\n  \\\"size_detected\\\": \\\"11\\\",\\n  \\\"condition_assessment\\\": \\\"good\\\",\\n  \\\"flaws_observed\\\": [\\\"sole tread worn approximately 40%\\\", \\\"minor scuff on right toe\\\"],\\n  \\\"estimated_retail_value_usd\\\": null,\\n  \\\"estimated_resale_value_usd\\\": null,\\n  \\\"rule_evaluation\\\": {\\n    \\\"brand_allowed\\\": false,\\n    \\\"category_allowed\\\": true,\\n    \\\"condition_above_floor\\\": true,\\n    \\\"price_in_range\\\": null,\\n    \\\"seasonality_match\\\": null\\n  },\\n  \\\"pass_reasons\\\": [],\\n  \\\"fail_reasons\\\": [],\\n  \\\"borderline_reasons\\\": [\\n    \\\"Brand not identifiable from photos — tag illegible\\\",\\n    \\\"Construction style resembles a Frye or Red Wing silhouette but cannot confirm without a legible label\\\",\\n    \\\"Confidence below auto-PASS threshold\\\"\\n  ],\\n  \\\"seller_message\\\": \\\"Thanks for your submission. Our team is taking a closer look and will respond within 24 hours.\\\",\\n  \\\"internal_note\\\": \\\"Boots appear to be Goodyear-welted leather work boots — silhouette consistent with Frye Bowery / Red Wing Iron Ranger style but tag is blurry. Recommend asking seller for a clearer tag photo or sending to merchant queue with a 'verify brand on intake' note.\\\"\\n}\\n```\\n\\n# Hard procedural rules\\n\\n1. **Always set every field.** Never omit a field. If unknown, use `null` for\\n   nullable fields, `[]` for arrays, `\\\"\\\"` for required strings.\\n2. **`flaws_observed` is what YOU see**, not what the seller claims.\\n3. **Estimate values only if reasonably possible.** If you don't know a\\n   brand's resale market, set `estimated_resale_value_usd: null`.\\n4. **The merchant's `merchant_notes` field is binding additional context.**\\n   Read it carefully. If it says \\\"we don't take maternity wear\\\", FAIL maternity\\n   items even if category allowlist would otherwise permit them.\\n5. **If you see two distinct items in the photos, ignore the second.**\\n   Evaluate only the primary subject of photo 1. Note this in `internal_note`.\\n6. **Never produce more than 6 entries in any `*_reasons` array.** Keep them\\n   short — 4–8 words each, declarative.\\n\\nReturn the JSON. No preamble. No markdown fence. Just the object.\";\n\n// capacity exhausted -> synthetic BORDERLINE, no Gemini call\nif (model === 'none') {\n  return [{ json: { flow:'decided', model_used:'none', model_short:'none', usage:{}, raw:{capacity:'exhausted'},\n    decision: { decision:'BORDERLINE', confidence:0.0, brand_detected:null, brand_confidence:0,\n      category_detected: claim.declared_category||'', size_detected: claim.declared_size||null,\n      condition_assessment:'good', flaws_observed:[], estimated_retail_value_usd:null, estimated_resale_value_usd:null,\n      rule_evaluation:{brand_allowed:true,category_allowed:true,condition_above_floor:true,price_in_range:null,seasonality_match:null},\n      pass_reasons:[], fail_reasons:[], borderline_reasons:['Daily AI capacity reached — routed to human review'],\n      seller_message:'Thanks for your submission. Our team is taking a closer look and will respond within 24 hours.',\n      internal_note:'Gemini daily cap reached; auto-routed to BORDERLINE for human review.' },\n    override_reason:'capacity_exhausted' } }];\n}\n\n// build description + photo parts\nconst ruleSet = claim.rule_set || {};\nconst descParts = [];\nif (claim.item_description) descParts.push('Item: ' + claim.item_description + '.');\nif (claim.declared_brand) descParts.push('Brand (seller-declared): ' + claim.declared_brand + '.');\nif (claim.declared_size) descParts.push('Size: ' + claim.declared_size + '.');\nif (claim.asking_price_usd != null) descParts.push('Asking price: $' + claim.asking_price_usd + '.');\nif (claim.declared_condition) descParts.push('Seller condition: ' + claim.declared_condition + '.');\nif (claim.notes) descParts.push('Notes: ' + claim.notes);\nconst description = descParts.join(' ');\n\nconst parts = [{ text: 'Merchant rule set:\\n' + JSON.stringify(ruleSet) + '\\n\\nSeller description:\\n' + description + '\\n\\nThe photos of the item follow as inline images.' }];\nfor (const p of (claim.photos || [])) {\n  const url = presignGet(p.r2_key, 600);\n  const ab = await this.helpers.httpRequest({ method:'GET', url, encoding:'arraybuffer' });\n  const b64 = Buffer.from(ab).toString('base64');\n  parts.push({ inline_data: { mime_type: p.content_type || 'image/jpeg', data: b64 } });\n}\n\nconst reqBody = { systemInstruction:{ parts:[{ text: SYSTEM_PROMPT }] }, contents:[{ role:'user', parts }],\n  generationConfig:{ responseMimeType:'application/json', responseSchema: RESPONSE_SCHEMA, temperature:0.2 } };\n\nlet decision, usage = {}, raw = {}, usedId = null, lastErr = null;\nfor (const mid of ATTEMPTS) {\n  try {\n    const r = await this.helpers.httpRequest({\n      method:'POST',\n      url:'https://generativelanguage.googleapis.com/v1beta/models/' + mid + ':generateContent',\n      headers:{ 'Content-Type':'application/json', 'x-goog-api-key': $env.GEMINI_API_KEY },\n      body: reqBody, json: true });\n    const txt = (r.candidates && r.candidates[0] && r.candidates[0].content && r.candidates[0].content.parts || []).map(x=>x.text||'').join('');\n    decision = JSON.parse(txt);\n    raw = r; usage = r.usageMetadata || {}; usedId = mid;\n    break;\n  } catch (e) { lastErr = e; }\n}\nif (!usedId) {\n  // every attempt failed -> BORDERLINE so the submission is never stuck\n  return [{ json: { flow:'decided', model_used:'none', model_short:'none', usage:{}, raw: { error: String(lastErr) },\n    decision: { decision:'BORDERLINE', confidence:0.0, brand_detected:null, brand_confidence:0,\n      category_detected: claim.declared_category||'', size_detected: claim.declared_size||null,\n      condition_assessment:'good', flaws_observed:[], estimated_retail_value_usd:null, estimated_resale_value_usd:null,\n      rule_evaluation:{brand_allowed:true,category_allowed:true,condition_above_floor:true,price_in_range:null,seasonality_match:null},\n      pass_reasons:[], fail_reasons:[], borderline_reasons:['AI review error — routed to human review'],\n      seller_message:'Thanks for your submission. Our team is taking a closer look and will respond within 24 hours.',\n      internal_note:'Gemini call failed: ' + String(lastErr).slice(0,200) },\n    override_reason:'ai_error' } }];\n}\nconst model_short = usedId.indexOf('pro') >= 0 ? 'pro' : 'flash';\nreturn [{ json: { flow:'decided', model_used: usedId, model_short, usage, raw, decision, override_reason:null } }];"
+      },
+      "id": "vision",
+      "name": "Vision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst v = $json;\nif (v.flow === 'skip') return [{ json: { flow:'skip', statusCode: v.statusCode, body: v.body } }];\n\nconst claim = $('Claim').first().json;\nlet d = v.decision || {};\nlet override_reason = v.override_reason || null;\n\n// safety override: a low-confidence PASS becomes BORDERLINE\nlet decision = d.decision;\nif (decision === 'PASS' && Number(d.confidence) < 0.85) { decision = 'BORDERLINE'; override_reason = 'confidence_pass_to_borderline'; }\nif (!['PASS','FAIL','BORDERLINE'].includes(decision)) { decision = 'BORDERLINE'; override_reason = override_reason || 'invalid_decision'; }\n\nconst status = decision === 'PASS' ? 'merchant_review' : decision === 'FAIL' ? 'ai_failed' : 'ai_borderline';\nconst usage = v.usage || {};\nconst base = ($env.SUBMIT_PUBLIC_BASE || 'https://submit.tagtorack.com').replace(/\\/$/, '');\n\n// mint approve/reject tokens on PASS\nlet tokens = [];\nif (decision === 'PASS') {\n  for (const action of ['approve','reject']) {\n    const rawTok = crypto.randomBytes(32).toString('hex');\n    const hash = crypto.createHash('sha256').update(rawTok).digest('hex');\n    tokens.push({ action, hash, link: base + '/submit/decision?t=' + rawTok });\n  }\n}\nconst approveLink = (tokens.find(t=>t.action==='approve')||{}).link || '';\nconst rejectLink  = (tokens.find(t=>t.action==='reject')||{}).link || '';\n\n// renamed value fields for the DB\nconst retail = d.estimated_retail_value_usd;\nconst resale = d.estimated_resale_value_usd;\n\nconst decision_row = {\n  flow: 'decided',\n  submission_id: claim.submission_id,\n  merchant_id: claim.merchant_id,\n  status,\n  model: v.model_used || 'gemini-2.5-pro',\n  model_short: v.model_short || 'none',\n  decision,\n  confidence: d.confidence != null ? d.confidence : 0,\n  brand_detected: d.brand_detected || null,\n  brand_confidence: d.brand_confidence != null ? d.brand_confidence : null,\n  category_detected: d.category_detected || '',\n  size_detected: d.size_detected || null,\n  condition_assessment: d.condition_assessment || 'good',\n  flaws_observed: d.flaws_observed || [],\n  estimated_retail_usd: retail != null ? retail : null,\n  estimated_resale_usd: resale != null ? resale : null,\n  rule_evaluation: d.rule_evaluation || {},\n  pass_reasons: d.pass_reasons || [],\n  fail_reasons: d.fail_reasons || [],\n  borderline_reasons: d.borderline_reasons || [],\n  seller_message: d.seller_message || '',\n  internal_note: d.internal_note || '',\n  raw_response: v.raw || {},\n  prompt_tokens: usage.promptTokenCount || 0,\n  output_tokens: usage.candidatesTokenCount || 0,\n  thoughts_tokens: usage.thoughtsTokenCount || 0,\n  override_reason,\n  tokens: tokens.map(t => ({ action: t.action, hash: t.hash })),\n  audit_payload: { decision, confidence: d.confidence, model: v.model_used, override_reason },\n};\n\n// ---- build emails (seller always; merchant on PASS; operator on BORDERLINE) ----\nconst merchantName = claim.merchant_name || 'the store';\nconst sellerMsg = (d.seller_message || '').replace(/\\{\\{\\s*merchant_name\\s*\\}\\}/g, merchantName);\nconst fromEmail = $env.FROM_EMAIL || 'submissions@tagtorack.com';\nconst wrap = (title, bodyHtml) => '<div style=\"font-family:sans-serif;max-width:560px\"><h2>' + title + '</h2>' + bodyHtml + '<hr><p style=\"color:#888;font-size:12px\">Tag to Rack</p></div>';\n\nconst emails = [];\n// seller\nemails.push({\n  to: claim.seller_email, toName: claim.seller_name || '',\n  subject: 'Your Tag to Rack submission (' + claim.short_id + ')',\n  html: wrap('Hi ' + (claim.seller_name || 'there') + ',', '<p>' + sellerMsg + '</p>'),\n  kind: 'seller',\n});\nif (decision === 'PASS') {\n  const itemLine = [claim.declared_brand, claim.item_description].filter(Boolean).join(' — ');\n  emails.push({\n    to: claim.merchant_email, toName: merchantName,\n    subject: 'New submission to review (' + claim.short_id + ')',\n    html: wrap('New item for ' + merchantName,\n      '<p><b>' + (itemLine || 'Item') + '</b></p>' +\n      '<p>Condition: ' + (d.condition_assessment || 'n/a') + ' · Est. resale: ' + (resale != null ? '$' + resale : 'n/a') + '</p>' +\n      '<p>AI notes: ' + (d.internal_note || '') + '</p>' +\n      '<p><a href=\"' + approveLink + '\">Approve</a> &nbsp;|&nbsp; <a href=\"' + rejectLink + '\">Reject</a></p>'),\n    kind: 'merchant',\n  });\n} else if (decision === 'BORDERLINE') {\n  emails.push({\n    to: $env.OPERATOR_ESCALATION_EMAIL || 'cmcelvain@pivothh.com', toName: 'Conner',\n    subject: 'BORDERLINE submission needs review (' + claim.short_id + ')',\n    html: wrap('Borderline submission ' + claim.short_id,\n      '<p>Merchant: ' + merchantName + '</p><p>Reasons: ' + (d.borderline_reasons || []).join('; ') + '</p>' +\n      '<p>Internal: ' + (d.internal_note || '') + '</p>'),\n    kind: 'operator',\n  });\n}\n\nreturn [{ json: {\n  flow: 'decided',\n  persist: decision_row,\n  emails,\n  fromEmail,\n  statusCode: 200,\n  body: { ok: true, decision, status, short_id: claim.short_id },\n} }];"
+      },
+      "id": "process",
+      "name": "Process",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\ndec AS (\n  INSERT INTO submission_decisions (submission_id, model, decision, confidence, brand_detected, brand_confidence,\n    category_detected, size_detected, condition_assessment, flaws_observed, estimated_retail_usd, estimated_resale_usd,\n    rule_evaluation, pass_reasons, fail_reasons, borderline_reasons, seller_message, internal_note, raw_response,\n    prompt_tokens, output_tokens, thoughts_tokens, override_reason)\n  SELECT (d->>'submission_id')::uuid, d->>'model', d->>'decision', (d->>'confidence')::numeric,\n    d->>'brand_detected', NULLIF(d->>'brand_confidence','')::numeric, d->>'category_detected', d->>'size_detected',\n    d->>'condition_assessment', coalesce(d->'flaws_observed','[]'::jsonb), NULLIF(d->>'estimated_retail_usd','')::numeric,\n    NULLIF(d->>'estimated_resale_usd','')::numeric, coalesce(d->'rule_evaluation','{}'::jsonb),\n    coalesce(d->'pass_reasons','[]'::jsonb), coalesce(d->'fail_reasons','[]'::jsonb), coalesce(d->'borderline_reasons','[]'::jsonb),\n    d->>'seller_message', d->>'internal_note', coalesce(d->'raw_response','{}'::jsonb),\n    coalesce((d->>'prompt_tokens')::int,0), coalesce((d->>'output_tokens')::int,0), coalesce((d->>'thoughts_tokens')::int,0),\n    d->>'override_reason'\n  FROM inp WHERE (d->>'flow')='decided'\n  RETURNING id\n),\nupd AS (\n  UPDATE seller_submissions SET status = (SELECT d->>'status' FROM inp), ai_reviewed_at = NOW()\n  WHERE id = (SELECT (d->>'submission_id')::uuid FROM inp) AND (SELECT d->>'flow' FROM inp)='decided'\n  RETURNING id\n),\naud AS (\n  INSERT INTO audit_log (agent_run_id, event_type, payload, confidence, decision, submission_id)\n  SELECT gen_random_uuid(), 'agent_output', coalesce(d->'audit_payload','{}'::jsonb),\n         NULLIF(d->>'confidence','')::numeric, d->>'decision', (d->>'submission_id')::uuid\n  FROM inp WHERE (d->>'flow')='decided'\n  RETURNING id\n),\ntok AS (\n  INSERT INTO decision_tokens (token_hash, submission_id, merchant_id, action, expires_at)\n  SELECT t->>'hash', (SELECT (d->>'submission_id')::uuid FROM inp), (SELECT (d->>'merchant_id')::uuid FROM inp),\n         t->>'action', NOW() + INTERVAL '7 days'\n  FROM inp, jsonb_array_elements(coalesce((SELECT d->'tokens' FROM inp),'[]'::jsonb)) t\n  WHERE (SELECT d->>'flow' FROM inp)='decided'\n  RETURNING token_hash\n),\nuinc AS (\n  INSERT INTO gemini_usage(day, model, request_count)\n  SELECT current_date, d->>'model_short', 1 FROM inp\n  WHERE (d->>'flow')='decided' AND (d->>'model_short') IN ('pro','flash')\n  ON CONFLICT (day,model) DO UPDATE SET request_count = gemini_usage.request_count + 1\n  RETURNING model\n)\nSELECT (SELECT id::text FROM dec) AS decision_id, (SELECT count(*) FROM tok) AS tokens_minted, (SELECT model FROM uinc) AS usage_model;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.persist || { flow: 'skip' }) }}"
+        }
+      },
+      "id": "persist",
+      "name": "Persist",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const proc = $('Process').first().json;\nif (proc.flow === 'skip') return [{ json: { statusCode: proc.statusCode, body: proc.body } }];\n\nconst enabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';\nconst transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();\nconst from = proc.fromEmail || 'submissions@tagtorack.com';\nconst fromAddr = from.includes('<') ? (from.match(/<([^>]+)>/) || [,from])[1] : from;\nlet sent = 0, errors = [];\n\nif (enabled) {\n  for (const e of (proc.emails || [])) {\n    try {\n      if (transport === 'resend') {\n        await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',\n          headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },\n          body:{ from: 'Tag to Rack <' + fromAddr + '>', to: [e.to], subject: e.subject, html: e.html }, json:true });\n      } else {\n        await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',\n          headers:{ 'Content-Type':'application/json' },\n          body:{ From:{ Email: fromAddr, Name:'Tag to Rack' }, To:[{ Email: e.to, Name: e.toName||'' }], Subject: e.subject, HTML: e.html }, json:true });\n      }\n      sent++;\n    } catch (err) { errors.push(e.kind + ':' + String(err)); }\n  }\n}\n\nconst body = Object.assign({}, proc.body, { emails_sent: sent });\nif (errors.length) body.email_errors = errors;\nreturn [{ json: { statusCode: proc.statusCode, body } }];"
+      },
+      "id": "autosend",
+      "name": "Autosend",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r5",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claim": {
+      "main": [
+        [
+          {
+            "node": "Gating",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gating": {
+      "main": [
+        [
+          {
+            "node": "Vision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision": {
+      "main": [
+        [
+          {
+            "node": "Process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process": {
+      "main": [
+        [
+          {
+            "node": "Persist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist": {
+      "main": [
+        [
+          {
+            "node": "Autosend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autosend": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
