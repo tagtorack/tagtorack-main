@@ -1,0 +1,136 @@
+{
+  "name": "WF-3 submit-photo-complete",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "submit/photo-complete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w3",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "submit-photo-complete-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst key = String(b.r2_key || \"\");\nconst base = key.split(\"/\").pop() || \"\";\nconst m = base.match(/^([a-z]+)-(\\d+)-/);\nconst role = m ? m[1] : \"\";\nconst ord = m ? parseInt(m[2], 10) : 0;\nconst sid = String(b.submission_id || \"\");\nconst byteSize = typeof b.byte_size === \"number\" ? b.byte_size : parseInt(b.byte_size, 10) || 0;\nconst valid =\n  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(sid) &&\n  key.length > 0 &&\n  [\"front\", \"back\", \"tag\", \"flaw\"].includes(role) &&\n  ord >= 1 && ord <= 6 &&\n  byteSize > 0;\nreturn [{ json: { payload: {\n  submission_id: sid,\n  r2_key: key,\n  role,\n  ord,\n  content_type: b.content_type || \"image/jpeg\",\n  byte_size: byteSize,\n  width: b.width == null ? null : b.width,\n  height: b.height == null ? null : b.height,\n  client_stripped_exif: !!b.client_stripped_exif,\n  valid,\n} } }];"
+      },
+      "id": "prep",
+      "name": "Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (SELECT $1::jsonb AS d),\nins AS (\n  INSERT INTO submission_photos\n    (submission_id, role, ord, r2_key, cdn_url, content_type, byte_size, width_px, height_px, exif_stripped_at)\n  SELECT (d->>'submission_id')::uuid,\n         d->>'role',\n         (d->>'ord')::smallint,\n         d->>'r2_key',\n         '',\n         d->>'content_type',\n         (d->>'byte_size')::int,\n         NULLIF(d->>'width','')::int,\n         NULLIF(d->>'height','')::int,\n         CASE WHEN (d->>'client_stripped_exif')::boolean THEN NOW() ELSE NULL END\n  FROM input\n  WHERE (d->>'valid')::boolean\n  ON CONFLICT (submission_id, role, ord) DO UPDATE\n    SET r2_key = EXCLUDED.r2_key,\n        content_type = EXCLUDED.content_type,\n        byte_size = EXCLUDED.byte_size,\n        width_px = COALESCE(EXCLUDED.width_px, submission_photos.width_px),\n        height_px = COALESCE(EXCLUDED.height_px, submission_photos.height_px),\n        exif_stripped_at = COALESCE(EXCLUDED.exif_stripped_at, submission_photos.exif_stripped_at),\n        uploaded_at = NOW()\n  RETURNING id\n)\nSELECT (SELECT (d->>'valid')::boolean FROM input) AS valid,\n       (SELECT id::text FROM ins) AS photo_id;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.payload) }}"
+        }
+      },
+      "id": "pg3",
+      "name": "Upsert photo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json || {};\nif (!r.valid) return [{ json: { statusCode: 400, body: { ok: false, error: \"bad_photo\" } } }];\nreturn [{ json: { statusCode: 200, body: { ok: true, photo_id: r.photo_id || null } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r3",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Upsert photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert photo": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

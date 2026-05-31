@@ -54,6 +54,8 @@ services:
       TZ: America/Chicago
       EXECUTIONS_TIMEOUT: "600"
       NODE_FUNCTION_ALLOW_EXTERNAL: "cheerio,luxon"
+      # crypto: R2 SigV4 presign (WF-5 photo fetch) + HMAC verify in Code nodes.
+      NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
       TT_AUTOSEND_ENABLED: ${TT_AUTOSEND_ENABLED}
       TT_DAILY_FLASH_CAP: ${TT_DAILY_FLASH_CAP}
       TT_DAILY_PRO_CAP: ${TT_DAILY_PRO_CAP}
@@ -65,6 +67,17 @@ services:
       CALCOM_BOOKING_URL: ${CALCOM_BOOKING_URL}
       CALCOM_WEBHOOK_SECRET: ${CALCOM_WEBHOOK_SECRET}
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY}
+      # Phase C — R2 photo fetch (WF-5 vision) + email autosend.
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      FROM_EMAIL: ${FROM_EMAIL}
+      # EMAIL_TRANSPORT=mailpit (dev) routes mail to the Mailpit HTTP API; set to
+      # "resend" in production. SUBMIT_PUBLIC_BASE builds the decision-link URLs.
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT}
+      SUBMIT_PUBLIC_BASE: ${SUBMIT_PUBLIC_BASE}
     ports: ["5678:5678"]
     volumes:
       - n8n_data:/home/node/.n8n

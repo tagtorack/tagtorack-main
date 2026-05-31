@@ -1,0 +1,136 @@
+{
+  "name": "WF-2 submit-start",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "submit/start",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w2",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "submit-start-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst item = b.item || {};\nconst contact = b.contact || {};\nconst parts = [item.brand, item.item_type, item.size]\n  .map((x) => (x == null ? \"\" : String(x).trim()))\n  .filter(Boolean);\nconst item_description = parts.join(\" \").trim() || String(item.item_type || \"item\");\nconst ap = item.asking_price_usd;\nreturn [{ json: { payload: {\n  merchant_slug: String(b.merchant_slug || \"\").trim().toLowerCase(),\n  email: contact.email || \"\",\n  name: contact.name || \"\",\n  phone: contact.phone || null,\n  zip: contact.zip || null,\n  consent_marketing: !!contact.consent_marketing,\n  item_description,\n  declared_brand: item.brand || null,\n  declared_category: item.item_type || null,\n  declared_size: item.size || null,\n  declared_condition: item.declared_condition || null,\n  asking_price_usd: (ap === null || ap === undefined || ap === \"\") ? null : String(ap),\n  notes: item.notes || null,\n  user_agent: b.user_agent || \"\",\n  ip_country: b.ip_country || \"\",\n  ip_hash: b.ip_hash || \"\",\n} } }];"
+      },
+      "id": "prep",
+      "name": "Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input AS (SELECT $1::jsonb AS d),\nm AS (\n  SELECT id AS merchant_id FROM merchants\n  WHERE slug = (SELECT d->>'merchant_slug' FROM input) AND status = 'active' LIMIT 1\n),\ns AS (\n  INSERT INTO sellers (merchant_id, email, name, phone, zip, consent_marketing)\n  SELECT m.merchant_id,\n         (SELECT d->>'email' FROM input),\n         (SELECT d->>'name' FROM input),\n         (SELECT d->>'phone' FROM input),\n         (SELECT d->>'zip' FROM input),\n         COALESCE((SELECT (d->>'consent_marketing')::boolean FROM input), false)\n  FROM m\n  ON CONFLICT (merchant_id, email) DO UPDATE\n    SET name = EXCLUDED.name,\n        phone = COALESCE(EXCLUDED.phone, sellers.phone),\n        zip = COALESCE(EXCLUDED.zip, sellers.zip),\n        last_activity_at = NOW()\n  RETURNING id AS seller_id, merchant_id\n),\nins AS (\n  INSERT INTO seller_submissions\n    (merchant_id, seller_id, item_description, declared_brand, declared_category,\n     declared_size, declared_condition, asking_price_usd, notes, fingerprint,\n     user_agent, ip_country, ip_hash)\n  SELECT s.merchant_id, s.seller_id,\n         i.d->>'item_description',\n         i.d->>'declared_brand',\n         i.d->>'declared_category',\n         i.d->>'declared_size',\n         i.d->>'declared_condition',\n         NULLIF(i.d->>'asking_price_usd','')::numeric,\n         i.d->>'notes',\n         encode(digest(s.seller_id::text || lower(trim(i.d->>'item_description')), 'sha256'),'hex'),\n         i.d->>'user_agent',\n         i.d->>'ip_country',\n         i.d->>'ip_hash'\n  FROM s, input i\n  ON CONFLICT (seller_id, fingerprint)\n    WHERE status NOT IN ('expired','withdrawn','merchant_rejected','ai_failed','deleted')\n    DO NOTHING\n  RETURNING id, seller_id, merchant_id\n)\nSELECT\n  EXISTS(SELECT 1 FROM m) AS merchant_found,\n  (SELECT id::text FROM ins) AS submission_id,\n  (SELECT left(id::text,8) FROM ins) AS short_id,\n  (SELECT merchant_id::text FROM ins) AS merchant_id;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.payload) }}"
+        }
+      },
+      "id": "pg2",
+      "name": "Insert submission",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json || {};\nlet statusCode, body;\nif (!r.merchant_found) { statusCode = 404; body = { ok: false, error: \"merchant_not_found\" }; }\nelse if (!r.submission_id) { statusCode = 409; body = { ok: false, error: \"duplicate_submission\" }; }\nelse { statusCode = 200; body = { submission_id: r.submission_id, short_id: r.short_id, merchant_id: r.merchant_id }; }\nreturn [{ json: { statusCode, body } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r2",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Insert submission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert submission": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
