@@ -17,9 +17,12 @@ export async function onRequestPost(context) {
   const kv = env.TT_SUBMIT_RL;
   const ipKey = `portal-login:ip:${await sha256Hex(ip)}`;
   const emKey = `portal-login:em:${await sha256Hex(email)}`;
+  // Short-circuit on the IP bucket so a single hammering IP can't also burn a
+  // victim email's hourly window (and lock that merchant out).
   const a = await checkAndIncrement(kv, ipKey, 5, { windowSec: 3600 });
+  if (!a.allowed) return json(200, { ok: true }); // throttle silently
   const b = await checkAndIncrement(kv, emKey, 5, { windowSec: 3600 });
-  if (!a.allowed || !b.allowed) return json(200, { ok: true }); // throttle silently
+  if (!b.allowed) return json(200, { ok: true }); // throttle silently
 
   try { await postToN8n(env, "merchant/login-request", { email }, 5000); } catch (_) {}
   return json(200, { ok: true });
