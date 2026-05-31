@@ -74,10 +74,14 @@ export async function onRequestGet(context) {
       // submit.js will re-fetch /submit/api/merchant?slug=… on DOMContentLoaded.
     }
 
-    // Pull the static index.html out of the Pages assets pipeline and substitute.
+    // Pull the static portal template out of the Pages assets pipeline and
+    // substitute. NOTE: fetch the clean URL "/submit/portal" (NOT
+    // "/submit/portal.html") — Pages' html_handling 308-redirects *.html paths,
+    // and an "index.html" name would additionally collide with the "/submit/ →
+    // external" rule in _redirects, sending this sub-request off-site.
     let html;
     try {
-      const assetUrl = new URL("/submit/index.html", url.origin);
+      const assetUrl = new URL("/submit/portal", url.origin);
       const assetReq = new Request(assetUrl.toString(), { method: "GET" });
       const res = await env.ASSETS.fetch(assetReq);
       if (!res.ok) throw new Error(`asset_${res.status}`);
