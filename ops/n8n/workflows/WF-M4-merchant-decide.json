@@ -1,0 +1,112 @@
+{
+  "name": "WF-M4 merchant-decide",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "merchant/decide",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "merchant-decide-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nsub AS (\n  SELECT s.id, s.status, left(s.id::text,8) AS short_id,\n         m.display_name AS merchant_name, m.calcom_event_url,\n         se.email AS seller_email, se.name AS seller_name\n  FROM seller_submissions s\n  JOIN merchants m ON m.id = s.merchant_id\n  JOIN sellers se ON se.id = s.seller_id\n  WHERE s.id = NULLIF((SELECT d->>'submission_id' FROM inp),'')::uuid\n    AND s.merchant_id = NULLIF((SELECT d->>'merchant_id' FROM inp),'')::uuid\n  LIMIT 1\n),\nupd AS (\n  UPDATE seller_submissions\n    SET status = CASE WHEN (SELECT d->>'action' FROM inp)='approve' THEN 'merchant_approved' ELSE 'merchant_rejected' END,\n        merchant_decided_at = NOW()\n  WHERE id = (SELECT id FROM sub) AND status = 'merchant_review'\n    AND (SELECT d->>'action' FROM inp) IN ('approve','reject')\n  RETURNING id, status\n),\ninvtok AS (\n  UPDATE decision_tokens SET used_at = NOW()\n  WHERE submission_id = (SELECT id FROM sub) AND used_at IS NULL AND (SELECT id FROM upd) IS NOT NULL\n  RETURNING token_hash\n)\nSELECT (SELECT id FROM sub) IS NOT NULL AS found,\n       (SELECT status FROM sub) AS prev_status,\n       (SELECT status FROM upd) AS new_status,\n       (SELECT count(*) FROM invtok) AS tokens_invalidated,\n       (SELECT short_id FROM sub) AS short_id,\n       (SELECT seller_email FROM sub) AS seller_email,\n       (SELECT seller_name FROM sub) AS seller_name,\n       (SELECT merchant_name FROM sub) AS merchant_name,\n       (SELECT calcom_event_url FROM sub) AS calcom_event_url;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ submission_id: $json.body.submission_id, merchant_id: $json.body.merchant_id, action: $json.body.action }) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Decide",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json;\nconst action = String(($('Webhook').first().json.body || {}).action || '');\nif (!r.found) return [{ json: { statusCode: 404, body: { ok:false, error:'not_found' } } }];\nif (!r.new_status) {\n  // already decided (not in merchant_review) — idempotent no-op, no email\n  return [{ json: { statusCode: 200, body: { ok:true, status: r.prev_status, already: true } } }];\n}\n// approve -> email seller the Cal.com drop-off link\nconst enabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';\nif (r.new_status === 'merchant_approved' && enabled) {\n  const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();\n  const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';\n  const cal = r.calcom_event_url || ($env.CALCOM_BOOKING_URL || '');\n  const subject = (r.merchant_name || 'The store') + ' approved your item (' + r.short_id + ')';\n  const html = '<div style=\"font-family:sans-serif;max-width:520px\"><h2>Good news, ' + (r.seller_name || 'there') + '</h2>' +\n    '<p>' + (r.merchant_name || 'The store') + ' approved your item. Book a drop-off time:</p>' +\n    '<p><a href=\"' + cal + '\">Schedule your drop-off</a></p></div>';\n  try {\n    if (transport === 'resend') {\n      await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',\n        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },\n        body:{ from:'Tag to Rack <' + from + '>', to:[r.seller_email], subject, html }, json:true });\n    } else {\n      await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',\n        headers:{ 'Content-Type':'application/json' },\n        body:{ From:{ Email: from, Name:'Tag to Rack' }, To:[{ Email: r.seller_email }], Subject: subject, HTML: html }, json:true });\n    }\n  } catch (e) { /* best effort */ }\n}\nreturn [{ json: { statusCode: 200, body: { ok:true, status: r.new_status, tokens_invalidated: r.tokens_invalidated } } }];"
+      },
+      "id": "notify",
+      "name": "Notify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide": {
+      "main": [
+        [
+          {
+            "node": "Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
