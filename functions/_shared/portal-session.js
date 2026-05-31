@@ -36,7 +36,10 @@ export function getCookie(request, name) {
   const header = request.headers.get("Cookie") || "";
   for (const part of header.split(";")) {
     const [k, ...v] = part.trim().split("=");
-    if (k === name) return decodeURIComponent(v.join("="));
+    if (k === name) {
+      // Malformed %-sequences must not 500 the page — treat as no cookie.
+      try { return decodeURIComponent(v.join("=")); } catch { return null; }
+    }
   }
   return null;
 }
