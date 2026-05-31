@@ -1,0 +1,112 @@
+{
+  "name": "WF-M5 merchant-stats",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "merchant/stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "merchant-stats-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nmid AS (SELECT NULLIF((SELECT d->>'merchant_id' FROM inp),'')::uuid AS id)\nSELECT\n  (SELECT count(*) FROM seller_submissions WHERE merchant_id=(SELECT id FROM mid) AND status='merchant_review') AS pending,\n  (SELECT count(*) FROM seller_submissions WHERE merchant_id=(SELECT id FROM mid) AND status='merchant_approved' AND merchant_decided_at > NOW()-INTERVAL '7 days') AS approved_week,\n  (SELECT count(*) FROM seller_submissions WHERE merchant_id=(SELECT id FROM mid) AND status='merchant_rejected' AND merchant_decided_at > NOW()-INTERVAL '7 days') AS rejected_week,\n  (SELECT count(*) FROM seller_submissions WHERE merchant_id=(SELECT id FROM mid) AND submitted_at > NOW()-INTERVAL '7 days') AS received_week,\n  (SELECT coalesce(round(100.0 * count(*) FILTER (WHERE s.status='merchant_approved') / NULLIF(count(*),0)), 0)\n     FROM seller_submissions s\n     JOIN LATERAL (SELECT decision FROM submission_decisions sd WHERE sd.submission_id=s.id ORDER BY created_at DESC LIMIT 1) d ON true\n     WHERE s.merchant_id=(SELECT id FROM mid) AND d.decision='PASS' AND s.status IN ('merchant_approved','merchant_rejected')) AS ai_agreement_pct,\n  (SELECT coalesce(sum(d.estimated_resale_usd),0)\n     FROM seller_submissions s\n     JOIN LATERAL (SELECT estimated_resale_usd FROM submission_decisions sd WHERE sd.submission_id=s.id ORDER BY created_at DESC LIMIT 1) d ON true\n     WHERE s.merchant_id=(SELECT id FROM mid) AND s.status='merchant_approved') AS approved_resale_value;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ merchant_id: $json.body.merchant_id }) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { statusCode: 200, body: { ok:true, stats: $json } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stats": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
