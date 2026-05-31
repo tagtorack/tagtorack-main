@@ -1,0 +1,136 @@
+{
+  "name": "WF-M2 merchant-login-consume",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "merchant/login-consume",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "merchant-login-consume-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst raw = String(($json.body && $json.body.token) || '');\nconst ip = String(($json.body && $json.body.ip) || '');\nconst token_hash = raw ? crypto.createHash('sha256').update(raw).digest('hex') : '';\nreturn [{ json: { token_hash, ip } }];"
+      },
+      "id": "prep",
+      "name": "Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nt AS (\n  UPDATE merchant_login_tokens SET used_at = NOW(), used_ip = NULLIF((SELECT d->>'ip' FROM inp),'')::inet\n  WHERE token_hash = (SELECT d->>'token_hash' FROM inp) AND used_at IS NULL AND expires_at > NOW()\n  RETURNING merchant_id\n)\nSELECT (SELECT count(*) FROM t) > 0 AS ok,\n       m.id::text AS merchant_id, m.slug, m.display_name\nFROM (SELECT 1) x\nLEFT JOIN merchants m ON m.id = (SELECT merchant_id FROM t);",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ token_hash: $json.token_hash, ip: $json.ip }) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Consume token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json;\nif (!r.ok || !r.merchant_id) return [{ json: { statusCode: 401, body: { ok:false, error:'invalid_token' } } }];\nreturn [{ json: { statusCode: 200, body: { ok:true, merchant_id: r.merchant_id, slug: r.slug, display_name: r.display_name } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Consume token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consume token": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
