@@ -3,7 +3,7 @@ import { postToN8n, signSession, setCookieHeader, PORTAL_CSP } from "../_shared/
 
 const errPage = (msg) =>
   new Response(
-    `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/portal/assets/portal.css">` +
+    `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/portal/assets/portal.css?v=1">` +
     `<div class="wrap"><div class="card"><h2>Sign-in link invalid</h2><p class="muted">${msg}</p>` +
     `<p><a href="/portal">Back to sign in</a></p></div></div>`,
     { status: 401, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Content-Security-Policy": PORTAL_CSP } });

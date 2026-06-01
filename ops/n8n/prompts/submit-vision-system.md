@@ -61,7 +61,12 @@ Compute `rule_evaluation` first. Then apply this decision matrix:
   `brand_blocklist` or matches a `banned_keywords` entry. The `brand_allowlist`
   is simply brands the merchant especially wants — it is NOT exclusive and being
   absent from it never causes a FAIL.
-- `rule_evaluation.category_allowed = true`.
+- `rule_evaluation.category_allowed = true`. If the merchant's
+  `categories_accepted` is empty or absent, they accept ALL clothing categories —
+  set this `true` for any genuine clothing item. Otherwise set it `true` when the
+  item reasonably fits an accepted category (interpret generously — a sherpa or
+  fleece zip-up counts as an "outdoor-jacket"/"jacket"), and `false` only when it
+  clearly falls outside the accepted set or matches a `categories_blocklist`.
 - `rule_evaluation.condition_above_floor = true`.
 - `rule_evaluation.price_in_range` is `true` or `null` (null = merchant did not
   set a price gate).

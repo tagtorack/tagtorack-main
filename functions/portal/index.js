@@ -4,7 +4,7 @@ import { requireSession, getCookie, csrfFor, postToN8n, PORTAL_CSP } from "../_s
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const page = (b) =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-  `<title>Tag to Rack — Store Portal</title><link rel="stylesheet" href="/portal/assets/portal.css"><meta name="robots" content="noindex"></head>` +
+  `<title>Tag to Rack — Store Portal</title><link rel="stylesheet" href="/portal/assets/portal.css?v=1"><meta name="robots" content="noindex"></head>` +
   `<body><div class="wrap">${b}</div></body></html>`;
 const html = (b, status = 200) =>
   new Response(page(b), { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Content-Security-Policy": PORTAL_CSP } });

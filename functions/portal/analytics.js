@@ -4,7 +4,7 @@ import { requireSession, postToN8n, PORTAL_CSP } from "../_shared/portal-session
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const page = (b) =>
   `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-  `<link rel="stylesheet" href="/portal/assets/portal.css"><meta name="robots" content="noindex"><div class="wrap">${b}</div>`;
+  `<link rel="stylesheet" href="/portal/assets/portal.css?v=1"><meta name="robots" content="noindex"><div class="wrap">${b}</div>`;
 const html = (b) => new Response(page(b), { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Content-Security-Policy": PORTAL_CSP } });
 const stat = (label, val) => `<div class="stat"><b>${esc(val)}</b><span class="muted">${esc(label)}</span></div>`;
 

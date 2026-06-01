@@ -4,7 +4,7 @@ import { requireAdmin, postToN8n, ADMIN_CSP } from "../_shared/admin-auth.js";
 export const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 export const page = (title, body) =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-  `<title>TtR Admin — ${esc(title)}</title><link rel="stylesheet" href="/admin/assets/admin.css"><meta name="robots" content="noindex"></head>` +
+  `<title>TtR Admin — ${esc(title)}</title><link rel="stylesheet" href="/admin/assets/admin.css?v=1"><meta name="robots" content="noindex"></head>` +
   `<body><div class="wrap"><div class="top"><strong>Tag to Rack — Admin</strong>` +
   `<nav><a href="/admin">Home</a><a href="/admin/queue">Queue</a><a href="/admin/submissions">Submissions</a>` +
   `<a href="/admin/merchants">Merchants</a><a href="/admin/calibration">Calibration</a><a href="/admin/audit">Audit</a></nav></div>${body}` +

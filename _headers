@@ -10,3 +10,8 @@
   # CSP shipped in Report-Only first to confirm zero violations before enforcing.
   # When ready, rename this header to Content-Security-Policy (no other changes).
   Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'
+
+# Note: Cloudflare Pages ignores Cache-Control set here for static assets (it
+# pins them to max-age=14400). Portal/admin stylesheets are therefore cache-busted
+# with a ?v=N query in their <link> tags (the pages are no-store, so a new ?v
+# loads fresh). Bump the version when changing portal.css / admin.css.
