@@ -199,7 +199,7 @@
     // Fast path: clearly-HEIC files convert before the canvas step.
     if (isHeic(file)) {
       try { return await rasterize(await convertHeic(file)); }
-      catch (e) { console.error("HEIC convert (detected) failed", file.type, file.name, e); throw new Error("heic_convert_failed"); }
+      catch (e) { console.error("HEIC convert (detected) failed", file.type, file.name, e); throw new Error("heic_convert_failed [" + (file.type||"no-type") + "]: " + ((e && e.message) || e)); }
     }
     // Otherwise try the browser's native decoder first...
     try {
@@ -210,7 +210,7 @@
       // even labeled .jpg while still being HEIC bytes), so detection misses them.
       console.warn("native decode failed; trying HEIC converter fallback —", file.type, file.name);
       try { return await rasterize(await convertHeic(file)); }
-      catch (e2) { console.error("HEIC convert (fallback) failed", e2); throw new Error("heic_convert_failed"); }
+      catch (e2) { console.error("HEIC convert (fallback) failed", e2); throw new Error("heic_convert_failed [" + (file.type||"no-type") + "]: " + ((e2 && e2.message) || e2)); }
     }
   }
 
@@ -242,7 +242,7 @@
           console.error("resize failed", err);
           const msg = String((err && err.message) || err);
           if (msg.indexOf("heic") !== -1) {
-            alert("We couldn't convert that iPhone (HEIC) photo. Please try again — or in iPhone Settings → Camera → Formats, choose “Most Compatible” and re-take it.");
+            alert("We couldn't convert that photo.\n\nPlease copy this and send it to support:\n" + msg);
           } else {
             alert("Couldn't read that photo. Please use a JPG or PNG (a screenshot of the photo also works).");
           }
@@ -301,7 +301,7 @@
               console.error("resize failed", err);
               const msg = String((err && err.message) || err);
               if (msg.indexOf("heic") !== -1) {
-                alert("We couldn't convert that iPhone (HEIC) photo. Please try again — or in iPhone Settings → Camera → Formats, choose “Most Compatible” and re-take it.");
+                alert("We couldn't convert that photo.\n\nPlease copy this and send it to support:\n" + msg);
               } else {
                 alert("Couldn't read that photo. Please use a JPG or PNG (a screenshot of the photo also works).");
               }
