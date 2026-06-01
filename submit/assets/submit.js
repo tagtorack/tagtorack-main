@@ -166,17 +166,17 @@
     if (t === "image/heic" || t === "image/heif") return true;
     return /\.hei[cf]$/i.test(file.name || ""); // iOS often reports an empty MIME type
   }
-  async function maybeConvertHeic(file) {
-    if (!isHeic(file)) return file;
+  async function convertHeic(file) {
     const heic2any = await ensureHeic2any();
     const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
     const jpeg = Array.isArray(out) ? out[0] : out;
-    const base = (file.name || "photo").replace(/\.hei[cf]$/i, "");
+    const base = (file.name || "photo").replace(/\.[^.]+$/, "");
     return new File([jpeg], base + ".jpg", { type: "image/jpeg" });
   }
 
-  async function resizeToBlob(file) {
-    file = await maybeConvertHeic(file);
+  // <img> -> canvas -> resized JPEG blob (also strips EXIF). Rejects "decode_failed"
+  // when the browser can't decode the source image.
+  function rasterize(file) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -201,6 +201,25 @@
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode_failed")); };
       img.src = url;
     });
+  }
+
+  async function resizeToBlob(file) {
+    // Fast path: clearly-HEIC files convert before the canvas step.
+    if (isHeic(file)) {
+      try { return await rasterize(await convertHeic(file)); }
+      catch (e) { console.error("HEIC convert (detected) failed", file.type, file.name, e); throw new Error("heic_convert_failed"); }
+    }
+    // Otherwise try the browser's native decoder first...
+    try {
+      return await rasterize(file);
+    } catch (e) {
+      // ...and if it can't decode, fall back to the HEIC converter. iPhone photos
+      // often arrive with an empty/wrong MIME type and a generic name (sometimes
+      // even labeled .jpg while still being HEIC bytes), so detection misses them.
+      console.warn("native decode failed; trying HEIC converter fallback —", file.type, file.name);
+      try { return await rasterize(await convertHeic(file)); }
+      catch (e2) { console.error("HEIC convert (fallback) failed", e2); throw new Error("heic_convert_failed"); }
+    }
   }
 
   function bindPhotoSlots() {
