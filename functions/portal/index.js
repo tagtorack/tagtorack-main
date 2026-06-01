@@ -48,7 +48,7 @@ export async function onRequestGet(context) {
 
   const csrf = await csrfFor(env, getCookie(request, "tt_portal_session"));
   const head = `<div class="top"><h1>${esc(session.slug)} — Queue (${subs.length})</h1>
-    <span><a href="/portal/analytics">Analytics</a> · <a href="/portal/logout">Sign out</a></span></div>`;
+    <span><a href="/portal/history">History</a> · <a href="/portal/settings">Settings</a> · <a href="/portal/analytics">Analytics</a> · <a href="/portal/logout">Sign out</a></span></div>`;
   const list = subs.length ? subs.map((s) => card(s, csrf)).join("") : `<div class="card"><p class="muted">No submissions awaiting review.</p></div>`;
   return html(head + list);
 }
