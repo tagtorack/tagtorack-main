@@ -84,6 +84,19 @@
         880,
         0
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fin = $('Finalize submission').first().json || {};\nconst sid = ($('Webhook').first().json.body || {}).submission_id;\nif (fin.updated === true && sid) {\n  try {\n    await this.helpers.httpRequest({ method: 'POST', url: 'http://127.0.0.1:5678/webhook/submit/process',\n      headers: { 'Content-Type': 'application/json' }, body: { submission_id: sid }, json: true });\n  } catch (e) { /* best-effort; WF-5 runs to completion independently even if this connection times out */ }\n}\nreturn [{ json: { triggered: fin.updated === true } }];"
+      },
+      "id": "trig",
+      "name": "Trigger AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ]
     }
   ],
   "connections": {
@@ -125,6 +138,17 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond": {
+      "main": [
+        [
+          {
+            "node": "Trigger AI",
             "type": "main",
             "index": 0
           }
