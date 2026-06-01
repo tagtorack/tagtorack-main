@@ -287,7 +287,13 @@
               renderPhotoSlot(tpl, blob);
               updatePhotosNext();
             } catch (err) {
-              alert("Couldn't read that photo. Try a different one.");
+              console.error("resize failed", err);
+              const msg = String((err && err.message) || err);
+              if (msg.indexOf("heic") !== -1) {
+                alert("We couldn't convert that iPhone (HEIC) photo. Please try again — or in iPhone Settings → Camera → Formats, choose “Most Compatible” and re-take it.");
+              } else {
+                alert("Couldn't read that photo. Please use a JPG or PNG (a screenshot of the photo also works).");
+              }
             }
           });
         }
