@@ -114,7 +114,11 @@ export async function onRequestGet(context) {
         // stays strict. Inline <style>/style= need style-src 'unsafe-inline'.
         "Content-Security-Policy":
           "default-src 'self'; " +
-          "script-src 'self' https://challenges.cloudflare.com; " +
+          // 'wasm-unsafe-eval' + blob:: the heic-to converter (vendored, CSP build)
+          // compiles a small WebAssembly module inside a blob worker to turn iPhone
+          // HEIC photos into JPEG. This permits WASM compilation only (NOT string
+          // evaluation). Scoped to this seller page; portal/admin stay strict.
+          "script-src 'self' 'wasm-unsafe-eval' blob: https://challenges.cloudflare.com; " +
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
           "font-src 'self' https://fonts.gstatic.com; " +
           "img-src 'self' data: https:; " +

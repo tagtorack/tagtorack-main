@@ -146,30 +146,22 @@
   // Photo capture + canvas resize (strips EXIF as a side effect)
   // ============================================================
   // HEIC support: iPhones save .heic, which browsers can't decode into an <img>.
-  // Lazy-load a converter (only when a HEIC is actually picked) and turn it into a
-  // JPEG blob before the canvas step. heic2any is vendored at /submit/assets.
-  let _heicLoader = null;
-  function ensureHeic2any() {
-    if (window.heic2any) return Promise.resolve(window.heic2any);
-    if (_heicLoader) return _heicLoader;
-    _heicLoader = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "/submit/assets/heic2any.min.js";
-      s.onload = () => (window.heic2any ? resolve(window.heic2any) : reject(new Error("heic_lib_missing")));
-      s.onerror = () => reject(new Error("heic_lib_load_failed"));
-      document.head.appendChild(s);
-    });
-    return _heicLoader;
-  }
+  // We convert to JPEG first, then run the canvas step. The converter (heic-to,
+  // CSP/WASM build) is vendored at /submit/assets and dynamically imported only
+  // when a HEIC is actually encountered (it's ~2.9 MB, so never on a normal load).
   function isHeic(file) {
     const t = (file.type || "").toLowerCase();
     if (t === "image/heic" || t === "image/heif") return true;
     return /\.hei[cf]$/i.test(file.name || ""); // iOS often reports an empty MIME type
   }
+  let _heicMod = null;
+  function loadHeicTo() {
+    if (!_heicMod) _heicMod = import("/submit/assets/heic-to-csp.js");
+    return _heicMod;
+  }
   async function convertHeic(file) {
-    const heic2any = await ensureHeic2any();
-    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
-    const jpeg = Array.isArray(out) ? out[0] : out;
+    const { heicTo } = await loadHeicTo();
+    const jpeg = await heicTo({ blob: file, type: "image/jpeg", quality: 0.9 });
     const base = (file.name || "photo").replace(/\.[^.]+$/, "");
     return new File([jpeg], base + ".jpg", { type: "image/jpeg" });
   }
