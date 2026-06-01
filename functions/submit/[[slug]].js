@@ -120,6 +120,9 @@ export async function onRequestGet(context) {
           "img-src 'self' data: https:; " +
           "connect-src 'self' https://*.r2.cloudflarestorage.com https://challenges.cloudflare.com; " +
           "frame-src https://challenges.cloudflare.com; " +
+          // HEIC->JPEG converter (heic2any, vendored at /submit/assets) may run in a
+          // blob: web worker; allow it so iPhone photos can be converted client-side.
+          "worker-src 'self' blob:; " +
           "form-action 'self'; base-uri 'self'; frame-ancestors 'self'; object-src 'none'",
       },
     });

@@ -145,7 +145,38 @@
   // ============================================================
   // Photo capture + canvas resize (strips EXIF as a side effect)
   // ============================================================
-  function resizeToBlob(file) {
+  // HEIC support: iPhones save .heic, which browsers can't decode into an <img>.
+  // Lazy-load a converter (only when a HEIC is actually picked) and turn it into a
+  // JPEG blob before the canvas step. heic2any is vendored at /submit/assets.
+  let _heicLoader = null;
+  function ensureHeic2any() {
+    if (window.heic2any) return Promise.resolve(window.heic2any);
+    if (_heicLoader) return _heicLoader;
+    _heicLoader = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "/submit/assets/heic2any.min.js";
+      s.onload = () => (window.heic2any ? resolve(window.heic2any) : reject(new Error("heic_lib_missing")));
+      s.onerror = () => reject(new Error("heic_lib_load_failed"));
+      document.head.appendChild(s);
+    });
+    return _heicLoader;
+  }
+  function isHeic(file) {
+    const t = (file.type || "").toLowerCase();
+    if (t === "image/heic" || t === "image/heif") return true;
+    return /\.hei[cf]$/i.test(file.name || ""); // iOS often reports an empty MIME type
+  }
+  async function maybeConvertHeic(file) {
+    if (!isHeic(file)) return file;
+    const heic2any = await ensureHeic2any();
+    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+    const jpeg = Array.isArray(out) ? out[0] : out;
+    const base = (file.name || "photo").replace(/\.hei[cf]$/i, "");
+    return new File([jpeg], base + ".jpg", { type: "image/jpeg" });
+  }
+
+  async function resizeToBlob(file) {
+    file = await maybeConvertHeic(file);
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
@@ -198,7 +229,12 @@
           maybeShowAddFlaw();
         } catch (err) {
           console.error("resize failed", err);
-          alert("Couldn't read that photo. Try a different one.");
+          const msg = String((err && err.message) || err);
+          if (msg.indexOf("heic") !== -1) {
+            alert("We couldn't convert that iPhone (HEIC) photo. Please try again — or in iPhone Settings → Camera → Formats, choose “Most Compatible” and re-take it.");
+          } else {
+            alert("Couldn't read that photo. Please use a JPG or PNG (a screenshot of the photo also works).");
+          }
         } finally {
           input.value = "";
         }
