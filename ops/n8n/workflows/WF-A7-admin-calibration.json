@@ -1,0 +1,112 @@
+{
+  "name": "WF-A7 admin-calibration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/calibration",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-calibration-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT jsonb_object_agg(decision, n) FROM (SELECT decision, count(*) n FROM submission_decisions GROUP BY decision) x) AS decision_counts,\n  (SELECT coalesce(round(100.0*count(*) FILTER (WHERE s.status='merchant_approved')/NULLIF(count(*),0)),0)\n     FROM seller_submissions s JOIN LATERAL (SELECT decision FROM submission_decisions sd WHERE sd.submission_id=s.id ORDER BY created_at DESC LIMIT 1) d ON true\n     WHERE d.decision='PASS' AND s.status IN ('merchant_approved','merchant_rejected')) AS ai_agreement_pct,\n  (SELECT round(avg(confidence),2) FROM submission_decisions) AS avg_confidence,\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('day',day,'model',model,'count',request_count) ORDER BY day DESC),'[]'::jsonb)\n     FROM gemini_usage WHERE day > current_date - INTERVAL '14 days') AS token_usage,\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('slug',slug,'received',received,'approved',approved) ORDER BY received DESC),'[]'::jsonb)\n     FROM (SELECT m.slug,\n                  count(s.*) AS received,\n                  count(s.*) FILTER (WHERE s.status='merchant_approved') AS approved\n           FROM merchants m LEFT JOIN seller_submissions s ON s.merchant_id=m.id GROUP BY m.slug) pm) AS per_merchant,\n  (SELECT count(*) FROM seller_submissions WHERE submitted_at > NOW()-INTERVAL '7 days') AS received_week;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Calc",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { statusCode: 200, body: { ok:true, calibration: $json } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Calc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
