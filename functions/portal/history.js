@@ -20,16 +20,17 @@ export async function onRequestGet(context) {
   try { const r = await postToN8n(env, "merchant/history", { merchant_id: session.merchant_id, status, q }, 8000); subs = (r && r.submissions) || []; }
   catch (_) { return html(`<p><a href="/portal">← Queue</a></p><p class="muted">Couldn't load history. Refresh to retry.</p>`); }
 
-  const opts = [["","All decisions"],["merchant_approved","Approved"],["merchant_rejected","Rejected"]]
+  const STATUS_LABEL = { ai_failed:"Declined (AI)", merchant_rejected:"Rejected", merchant_approved:"Approved", dropoff_scheduled:"Drop-off booked", completed:"Completed" };
+  const opts = [["","All outcomes"],["ai_failed","Declined (AI)"],["merchant_approved","Approved"],["merchant_rejected","Rejected"],["dropoff_scheduled","Drop-off booked"],["completed","Completed"]]
     .map(([v,l]) => `<option value="${v}"${v===status?" selected":""}>${l}</option>`).join("");
   const expQs = new URLSearchParams({ ...(status?{status}:{}) , ...(q?{q}:{}) }).toString();
   const rows = subs.map(s => `<tr>
     <td><a href="/portal/submission/${esc(s.submission_id)}">${esc(s.short_id)}</a></td>
-    <td>${s.status === "merchant_approved" ? "Approved" : "Rejected"}</td>
-    <td><span class="badge ${esc(s.decision||"")}">${esc(s.decision||"—")}</span> <span class="muted">${esc(s.confidence ?? "")}</span></td>
+    <td><span class="badge ${esc(s.status||"")}">${esc(STATUS_LABEL[s.status] || s.status || "—")}</span></td>
+    <td><span class="badge ${esc(s.decision||"")}">${esc(s.decision||"—")}</span> <span class="muted">${s.confidence != null ? esc(s.confidence) : ""}</span></td>
     <td>${esc(s.declared_brand||"")} ${esc((s.item_description||"").slice(0,40))}</td>
     <td>${s.estimated_resale_usd != null ? "$"+esc(s.estimated_resale_usd) : "n/a"}</td>
-    <td class="muted">${esc(String(s.merchant_decided_at||"").slice(0,10))}</td></tr>`).join("");
+    <td class="muted">${esc(String(s.merchant_decided_at||s.submitted_at||"").slice(0,10))}</td></tr>`).join("");
   return html(
     `<div class="top"><h1>${esc(session.slug)} — History</h1>
        <span><a href="/portal">← Queue</a> · <a href="/portal/settings">Settings</a> · <a href="/portal/logout">Sign out</a></span></div>
@@ -40,6 +41,6 @@ export async function onRequestGet(context) {
        <div style="margin-left:auto"><a class="btn" href="/portal/api/export-csv${expQs?("?"+esc(expQs)):""}">Export CSV</a></div>
      </form>
      <div class="card"><p class="muted">${subs.length} decided</p>
-       <table><thead><tr><th>ID</th><th>Decision</th><th>AI</th><th>Item</th><th>Est. resale</th><th>Date</th></tr></thead>
+       <table><thead><tr><th>ID</th><th>Outcome</th><th>AI</th><th>Item</th><th>Est. resale</th><th>Date</th></tr></thead>
        <tbody>${rows || '<tr><td colspan=6 class=muted>No decided submissions yet.</td></tr>'}</tbody></table></div>`);
 }
