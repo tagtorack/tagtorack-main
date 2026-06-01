@@ -1,0 +1,18 @@
+{
+  "rules": [
+    {
+      "id": "tagtorack-browser-upload",
+      "allowed": {
+        "origins": [
+          "https://tagtorack.com",
+          "https://www.tagtorack.com",
+          "https://tagtorack-main.pages.dev"
+        ],
+        "methods": ["PUT", "GET", "HEAD"],
+        "headers": ["*"]
+      },
+      "exposeHeaders": ["ETag"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}
