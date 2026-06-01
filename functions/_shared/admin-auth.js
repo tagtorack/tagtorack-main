@@ -80,7 +80,9 @@ export async function csrfFor(env, email) {
 }
 
 export const ADMIN_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+  "default-src 'self'; script-src 'self'; " +
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+  "font-src 'self' https://fonts.gstatic.com; " +
   "img-src 'self' data: https://*.r2.cloudflarestorage.com; connect-src 'self'; " +
   "form-action 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'";
 
