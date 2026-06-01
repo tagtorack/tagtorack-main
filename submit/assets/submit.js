@@ -92,6 +92,14 @@
   }
   function clearDraft() { localStorage.removeItem(draftKey); }
 
+  // After a successful submission: keep contact for "submit another", drop item+photos.
+  function resetForNextItem() {
+    const d = readDraft();
+    localStorage.setItem(draftKey, JSON.stringify({ contact: d.contact || {} })); // keep contact, drop item
+    for (const k of Object.keys(photoBlobs)) photoBlobs[k] = null;
+    for (const k of Object.keys(photoMeta)) photoMeta[k] = null;
+  }
+
   function rehydrateForms() {
     const d = readDraft();
     if (d.item) {
@@ -505,7 +513,12 @@
       setUploadProgress(100, "Done");
       const cid = $("#confirmation-id");
       if (cid) cid.textContent = fin.short_id || short_id || submission_id.slice(0, 8);
-      clearDraft();
+      if (fin.status_token) {
+        const link = $("#status-link");
+        const wrap = $("#status-link-wrap");
+        if (link && wrap) { link.href = "/submit/status?s=" + encodeURIComponent(fin.status_token); wrap.hidden = false; }
+      }
+      resetForNextItem(); // keep contact for "submit another", drop item+photos
       setScreen("confirmation");
     } catch (e) {
       console.error(e);
@@ -518,6 +531,17 @@
   // ============================================================
   function bindNav() {
     document.addEventListener("click", (e) => {
+      const another = e.target.closest("#submit-another");
+      if (another) {
+        // In-place "submit another item": contact already preserved by resetForNextItem();
+        // clear the item form in the DOM, re-hydrate contact from the draft, jump to step 1.
+        e.preventDefault();
+        const itf = $("#item-form"); if (itf && typeof itf.reset === "function") itf.reset();
+        rehydrateForms();
+        window.scrollTo(0, 0);
+        setScreen("item-details");
+        return;
+      }
       const next = e.target.closest("[data-next]");
       const back = e.target.closest("[data-back]");
       if (next) {
