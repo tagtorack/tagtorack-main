@@ -78,6 +78,8 @@ services:
       # "resend" in production. SUBMIT_PUBLIC_BASE builds the decision-link URLs.
       EMAIL_TRANSPORT: ${EMAIL_TRANSPORT}
       SUBMIT_PUBLIC_BASE: ${SUBMIT_PUBLIC_BASE}
+      # Shared with Pages — mints the seller status-link HMAC token (must match Pages' value).
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET}
     ports: ["5678:5678"]
     volumes:
       - n8n_data:/home/node/.n8n
