@@ -251,12 +251,22 @@ const sellerMsg = (d.seller_message || '').replace(/\\{\\{\\s*merchant_name\\s*\
 const fromEmail = $env.FROM_EMAIL || 'submissions@tagtorack.com';
 const wrap = (title, bodyHtml) => '<div style="font-family:sans-serif;max-width:560px"><h2>' + title + '</h2>' + bodyHtml + '<hr><p style="color:#888;font-size:12px">Tag to Rack</p></div>';
 
+// Status link token — base64url encoding MUST match functions/_shared/status-token.js
+// (base64 -> +→-, /→_, strip =), signed over the raw submission_id with the shared secret.
+const _crypto = require('crypto');
+const _statusBase = ($env.SUBMIT_PUBLIC_BASE || 'https://submit.tagtorack.com').replace(/\\/$/, '');
+const _sid = claim.submission_id;
+const _b64url = (b) => b.replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
+const _encId = _b64url(Buffer.from(_sid, 'utf8').toString('base64'));
+const _sig = _b64url(_crypto.createHmac('sha256', $env.PORTAL_SESSION_SECRET || '').update(_sid).digest('base64'));
+const statusUrl = _statusBase + '/submit/status?s=' + _encId + '.' + _sig;
+
 const emails = [];
 // seller
 emails.push({
   to: claim.seller_email, toName: claim.seller_name || '',
   subject: 'Your Tag to Rack submission (' + claim.short_id + ')',
-  html: wrap('Hi ' + (claim.seller_name || 'there') + ',', '<p>' + sellerMsg + '</p>'),
+  html: wrap('Hi ' + (claim.seller_name || 'there') + ',', '<p>' + sellerMsg + '</p><p><a href="' + statusUrl + '">Check your status</a></p>'),
   kind: 'seller',
 });
 if (decision === 'PASS') {
