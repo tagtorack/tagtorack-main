@@ -121,7 +121,8 @@ export async function onRequestGet(context) {
           "script-src 'self' 'wasm-unsafe-eval' blob: https://challenges.cloudflare.com; " +
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
           "font-src 'self' https://fonts.gstatic.com; " +
-          "img-src 'self' data: https:; " +
+          // blob:: photo previews + the canvas-resize step load files via blob: URLs.
+          "img-src 'self' data: blob: https:; " +
           "connect-src 'self' https://*.r2.cloudflarestorage.com https://challenges.cloudflare.com; " +
           "frame-src https://challenges.cloudflare.com; " +
           // HEIC->JPEG converter (heic2any, vendored at /submit/assets) may run in a

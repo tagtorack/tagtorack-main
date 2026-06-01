@@ -253,9 +253,9 @@
           console.error("resize failed", err);
           const msg = String((err && err.message) || err);
           if (msg.indexOf("heic") !== -1) {
-            alert("We couldn't convert that photo.\n\nPlease copy this and send it to support:\n" + msg);
+            alert("Couldn't process that photo. Please try a different one — a JPG or PNG works best (a screenshot is fine too).");
           } else {
-            alert("Couldn't read that photo. Please use a JPG or PNG (a screenshot of the photo also works).");
+            alert("Couldn't process that photo. Please try a different one — a JPG or PNG works best (a screenshot is fine too).");
           }
         } finally {
           input.value = "";
@@ -312,9 +312,9 @@
               console.error("resize failed", err);
               const msg = String((err && err.message) || err);
               if (msg.indexOf("heic") !== -1) {
-                alert("We couldn't convert that photo.\n\nPlease copy this and send it to support:\n" + msg);
+                alert("Couldn't process that photo. Please try a different one — a JPG or PNG works best (a screenshot is fine too).");
               } else {
-                alert("Couldn't read that photo. Please use a JPG or PNG (a screenshot of the photo also works).");
+                alert("Couldn't process that photo. Please try a different one — a JPG or PNG works best (a screenshot is fine too).");
               }
             }
           });
