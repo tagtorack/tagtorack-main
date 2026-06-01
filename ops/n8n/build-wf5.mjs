@@ -283,7 +283,7 @@ if (decision === 'PASS') {
   });
 } else if (decision === 'BORDERLINE') {
   emails.push({
-    to: $env.OPERATOR_ESCALATION_EMAIL || 'cmcelvain@pivothh.com', toName: 'Conner',
+    to: $env.OPERATOR_ESCALATION_EMAIL || 'contact@tagtorack.com', toName: 'Tag to Rack',
     subject: 'BORDERLINE submission needs review (' + claim.short_id + ')',
     html: wrap('Borderline submission ' + claim.short_id,
       '<p>Merchant: ' + merchantName + '</p><p>Reasons: ' + (d.borderline_reasons || []).join('; ') + '</p>' +
