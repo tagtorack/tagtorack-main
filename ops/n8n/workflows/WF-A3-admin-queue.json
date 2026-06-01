@@ -1,0 +1,112 @@
+{
+  "name": "WF-A3 admin-queue",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/queue",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-queue-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.id::text AS submission_id, left(s.id::text,8) AS short_id, s.status, s.submitted_at,\n       s.declared_brand, s.item_description,\n       m.slug AS merchant_slug, m.display_name AS merchant_name, se.email AS seller_email,\n       dec.decision, dec.confidence, dec.borderline_reasons, dec.fail_reasons, dec.internal_note,\n       (SELECT coalesce(jsonb_agg(jsonb_build_object('r2_key',p.r2_key,'role',p.role,'ord',p.ord) ORDER BY p.ord),'[]'::jsonb) FROM submission_photos p WHERE p.submission_id=s.id) AS photos\nFROM seller_submissions s\nJOIN merchants m ON m.id=s.merchant_id\nJOIN sellers se ON se.id=s.seller_id\nLEFT JOIN LATERAL (SELECT * FROM submission_decisions sd WHERE sd.submission_id=s.id ORDER BY created_at DESC LIMIT 1) dec ON true\nWHERE s.status IN ('ai_borderline','ai_failed')\n   OR (s.status='ai_reviewing' AND s.submitted_at < NOW() - INTERVAL '10 minutes')\nORDER BY s.submitted_at;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Queue",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "function presignGet(r2key, expiresSec) {\n  const crypto = require('crypto');\n  const acct=$env.R2_ACCOUNT_ID, ak=$env.R2_ACCESS_KEY_ID, sk=$env.R2_SECRET_ACCESS_KEY, bucket=$env.R2_BUCKET;\n  const host = acct + '.r2.cloudflarestorage.com';\n  const amzDate = new Date().toISOString().replace(/[-:]|\\.\\d{3}/g,'');\n  const day = amzDate.slice(0,8);\n  const scope = day + '/auto/s3/aws4_request';\n  const enc = (s)=>encodeURIComponent(s).replace(/[!'()*]/g,(c)=>'%'+c.charCodeAt(0).toString(16).toUpperCase());\n  const sha = (s)=>crypto.createHash('sha256').update(s).digest('hex');\n  const hmac = (k,m)=>crypto.createHmac('sha256',k).update(m).digest();\n  const uri = '/'+enc(bucket)+'/'+r2key.split('/').map(enc).join('/');\n  const q = { 'X-Amz-Algorithm':'AWS4-HMAC-SHA256','X-Amz-Credential':ak+'/'+scope,'X-Amz-Date':amzDate,'X-Amz-Expires':String(expiresSec),'X-Amz-SignedHeaders':'host' };\n  const qs = Object.keys(q).sort().map(k=>enc(k)+'='+enc(q[k])).join('&');\n  const creq = ['GET',uri,qs,'host:'+host+'\\n','host','UNSIGNED-PAYLOAD'].join('\\n');\n  const sts = ['AWS4-HMAC-SHA256',amzDate,scope,sha(creq)].join('\\n');\n  let k=hmac('AWS4'+sk,day); k=hmac(k,'auto'); k=hmac(k,'s3'); k=hmac(k,'aws4_request');\n  return 'https://'+host+uri+'?'+qs+'&X-Amz-Signature='+hmac(k,sts).toString('hex');\n}\nconst rows = $input.all().map(i=>i.json).filter(r=>r && r.submission_id);\nconst out = rows.map(r => ({ ...r, photos: (r.photos||[]).map(p=>({ role:p.role, ord:p.ord, url: presignGet(p.r2_key, 86400) })) }));\nreturn [{ json: { statusCode: 200, body: { ok:true, queue: out } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
