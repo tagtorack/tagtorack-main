@@ -21,8 +21,8 @@ WHERE (NULLIF(inp.d->>'status','') IS NULL OR s.status = inp.d->>'status')
        OR se.email ILIKE '%'||(inp.d->>'q')||'%'
        OR coalesce(s.declared_brand,'') ILIKE '%'||(inp.d->>'q')||'%')
 ORDER BY s.submitted_at DESC
-LIMIT LEAST(coalesce(NULLIF(inp.d->>'limit','')::int,50),200)
-OFFSET coalesce(NULLIF(inp.d->>'offset','')::int,0);
+LIMIT (SELECT LEAST(coalesce(NULLIF(d->>'limit','')::int,50),200) FROM inp)
+OFFSET (SELECT coalesce(NULLIF(d->>'offset','')::int,0) FROM inp);
 `.trim();
 
 const shape = `

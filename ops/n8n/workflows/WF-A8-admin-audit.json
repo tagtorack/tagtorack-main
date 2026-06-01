@@ -21,7 +21,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nSELECT a.id::text AS id, a.event_type, a.decision, a.confidence, a.payload, a.created_at,\n       a.submission_id::text AS submission_id\nFROM audit_log a, inp\nWHERE (NULLIF(inp.d->>'event_type','') IS NULL OR a.event_type = inp.d->>'event_type')\n  AND (NULLIF(inp.d->>'submission_id','') IS NULL OR a.submission_id = (inp.d->>'submission_id')::uuid)\nORDER BY a.created_at DESC\nLIMIT LEAST(coalesce(NULLIF(inp.d->>'limit','')::int,100),500)\nOFFSET coalesce(NULLIF(inp.d->>'offset','')::int,0);",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nSELECT a.id::text AS id, a.event_type, a.decision, a.confidence, a.payload, a.created_at,\n       a.submission_id::text AS submission_id\nFROM audit_log a, inp\nWHERE (NULLIF(inp.d->>'event_type','') IS NULL OR a.event_type = inp.d->>'event_type')\n  AND (NULLIF(inp.d->>'submission_id','') IS NULL OR a.submission_id = (inp.d->>'submission_id')::uuid)\nORDER BY a.created_at DESC\nLIMIT (SELECT LEAST(coalesce(NULLIF(d->>'limit','')::int,100),500) FROM inp)\nOFFSET (SELECT coalesce(NULLIF(d->>'offset','')::int,0) FROM inp);",
         "options": {
           "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
         }

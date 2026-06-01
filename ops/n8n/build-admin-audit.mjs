@@ -10,8 +10,8 @@ FROM audit_log a, inp
 WHERE (NULLIF(inp.d->>'event_type','') IS NULL OR a.event_type = inp.d->>'event_type')
   AND (NULLIF(inp.d->>'submission_id','') IS NULL OR a.submission_id = (inp.d->>'submission_id')::uuid)
 ORDER BY a.created_at DESC
-LIMIT LEAST(coalesce(NULLIF(inp.d->>'limit','')::int,100),500)
-OFFSET coalesce(NULLIF(inp.d->>'offset','')::int,0);
+LIMIT (SELECT LEAST(coalesce(NULLIF(d->>'limit','')::int,100),500) FROM inp)
+OFFSET (SELECT coalesce(NULLIF(d->>'offset','')::int,0) FROM inp);
 `.trim();
 
 const shape = `

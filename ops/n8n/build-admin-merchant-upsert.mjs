@@ -12,7 +12,7 @@ const slug = String(b.slug||'').trim().toLowerCase();
 const floor = String(rule_set.condition_floor||'good');
 const okSlug = /^[a-z0-9-]{2,64}$/.test(slug);
 const okFloor = ['new_with_tags','excellent','good','fair'].includes(floor);
-const valid = okSlug && okFloor && b.display_name && b.contact_email && b.dropoff_address;
+const valid = !!(okSlug && okFloor && b.display_name && b.contact_email && b.dropoff_address);
 return [{ json: { payload: {
   valid, error: valid ? null : (!okSlug?'bad_slug':!okFloor?'bad_condition_floor':'missing_fields'),
   slug, display_name: b.display_name||'', contact_email: b.contact_email||'', dropoff_address: b.dropoff_address||'',
