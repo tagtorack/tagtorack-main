@@ -1,0 +1,112 @@
+{
+  "name": "WF-A1 admin-submissions",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/submissions",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-submissions-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nSELECT s.id::text AS submission_id, left(s.id::text,8) AS short_id, s.status, s.submitted_at,\n       s.declared_brand, s.item_description,\n       m.slug AS merchant_slug, m.display_name AS merchant_name,\n       se.email AS seller_email,\n       dec.decision, dec.confidence\nFROM seller_submissions s\nJOIN merchants m ON m.id = s.merchant_id\nJOIN sellers se ON se.id = s.seller_id\nLEFT JOIN LATERAL (SELECT decision, confidence FROM submission_decisions sd WHERE sd.submission_id=s.id ORDER BY created_at DESC LIMIT 1) dec ON true,\n     inp\nWHERE (NULLIF(inp.d->>'status','') IS NULL OR s.status = inp.d->>'status')\n  AND (NULLIF(inp.d->>'merchant_id','') IS NULL OR s.merchant_id = (inp.d->>'merchant_id')::uuid)\n  AND (NULLIF(inp.d->>'q','') IS NULL\n       OR left(s.id::text,8) ILIKE '%'||(inp.d->>'q')||'%'\n       OR se.email ILIKE '%'||(inp.d->>'q')||'%'\n       OR coalesce(s.declared_brand,'') ILIKE '%'||(inp.d->>'q')||'%')\nORDER BY s.submitted_at DESC\nLIMIT LEAST(coalesce(NULLIF(inp.d->>'limit','')::int,50),200)\nOFFSET coalesce(NULLIF(inp.d->>'offset','')::int,0);",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+        }
+      },
+      "id": "pg",
+      "name": "List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json).filter(r => r && r.submission_id);\nreturn [{ json: { statusCode: 200, body: { ok: true, submissions: rows } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
