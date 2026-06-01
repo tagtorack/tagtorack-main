@@ -17,3 +17,15 @@ body { font-family: system-ui, sans-serif; color: var(--ink); margin: 0; backgro
 input[type=email] { padding: 10px; border: 1px solid var(--line); border-radius: 8px; width: 100%; }
 .stat { display: inline-block; min-width: 140px; margin: 8px 16px 8px 0; }
 .stat b { display: block; font-size: 24px; }
+/* self-serve: chip editor + settings/history form fields */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: #efe9fb; color: #4a2a9c; border-radius: 999px; padding: 2px 8px; font-size: 13px; }
+.chip button { border: 0; background: transparent; cursor: pointer; font-size: 14px; line-height: 1; color: #4a2a9c; }
+.chip-entry { border: 0; outline: none; flex: 1; min-width: 120px; font: inherit; padding: 4px; }
+.quick { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 2px 8px; font-size: 12px; cursor: pointer; margin: 2px 4px 2px 0; }
+.field { margin: 14px 0; }
+.field label { display: block; font-size: 13px; color: var(--soft); margin-bottom: 4px; }
+.filters { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--soft); font-weight: 600; }

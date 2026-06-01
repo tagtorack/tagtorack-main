@@ -18,7 +18,7 @@ export async function onRequestGet(context) {
   catch (_) { return html(`<p><a href="/portal">← Queue</a></p><p class="muted">Couldn't load analytics.</p>`); }
 
   return html(
-    `<div class="top"><h1>Analytics</h1><a href="/portal">← Queue</a></div>
+    `<div class="top"><h1>Analytics</h1><span><a href="/portal">← Queue</a> · <a href="/portal/history">History</a> · <a href="/portal/settings">Settings</a> · <a href="/portal/logout">Sign out</a></span></div>
      <div class="card">
        ${stat("Pending review", st.pending ?? 0)}
        ${stat("Approved (7d)", st.approved_week ?? 0)}

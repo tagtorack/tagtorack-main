@@ -1,0 +1,136 @@
+{
+  "name": "WF-M7 merchant-profile-update",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "merchant/profile-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "merchant-profile-update-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst mid = String(b.merchant_id || '');\nconst isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(mid);\nlet rule_set = b.rule_set;\nif (typeof rule_set === 'string') { try { rule_set = JSON.parse(rule_set); } catch { return [{ json:{ payload:{ valid:false, error:'bad_rule_set_json' } } }]; } }\nrule_set = rule_set || {};\nconst floor = String(rule_set.condition_floor || 'good');\nconst okFloor = ['new_with_tags','excellent','good','fair'].includes(floor);\nconst valid = !!(isUuid && okFloor);\nreturn [{ json: { payload: {\n  valid, error: valid ? null : (!isUuid ? 'bad_merchant_id' : 'bad_condition_floor'),\n  merchant_id: mid, rule_set, operator_email: String(b.operator_email || '')\n} } }];"
+      },
+      "id": "prep",
+      "name": "Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nupd AS (\n  UPDATE merchants SET\n    rule_set = (SELECT d->'rule_set' FROM inp),\n    accepted_categories = ARRAY(SELECT jsonb_array_elements_text(coalesce((SELECT d->'rule_set'->'categories_accepted' FROM inp),'[]'::jsonb))),\n    brand_allowlist     = ARRAY(SELECT jsonb_array_elements_text(coalesce((SELECT d->'rule_set'->'brand_allowlist' FROM inp),'[]'::jsonb))),\n    brand_blocklist     = ARRAY(SELECT jsonb_array_elements_text(coalesce((SELECT d->'rule_set'->'brand_blocklist' FROM inp),'[]'::jsonb))),\n    condition_floor     = coalesce((SELECT d->'rule_set'->>'condition_floor' FROM inp),'good'),\n    updated_at = NOW()\n  WHERE id = NULLIF((SELECT d->>'merchant_id' FROM inp),'')::uuid\n    AND (SELECT (d->>'valid')::boolean FROM inp)\n  RETURNING id, slug\n),\naud AS (\n  INSERT INTO audit_log (agent_run_id, event_type, payload)\n  SELECT gen_random_uuid(), 'merchant_rules_updated',\n         jsonb_build_object('merchant', (SELECT d->>'operator_email' FROM inp), 'slug', (SELECT slug FROM upd), 'rule_set', (SELECT d->'rule_set' FROM inp))\n  WHERE (SELECT id FROM upd) IS NOT NULL\n  RETURNING id\n)\nSELECT (SELECT (d->>'valid')::boolean FROM inp) AS valid,\n       (SELECT d->>'error' FROM inp) AS error,\n       (SELECT slug FROM upd) AS slug,\n       (SELECT id FROM upd) IS NOT NULL AS updated;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.payload) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Update",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $json || {};\nif (!r.valid) return [{ json: { statusCode: 400, body: { ok:false, error: r.error||'invalid' } } }];\nif (!r.updated) return [{ json: { statusCode: 404, body: { ok:false, error:'not_found' } } }];\nreturn [{ json: { statusCode: 200, body: { ok:true, slug: r.slug } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
