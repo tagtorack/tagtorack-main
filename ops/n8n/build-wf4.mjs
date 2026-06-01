@@ -48,6 +48,22 @@ if (n < 3 || n > 6) return [{ json: { statusCode: 409, body: { ok: false, error:
 return [{ json: { statusCode: 200, body: { ok: true, short_id: r.short_id } } }];
 `.trim();
 
+// Fire WF-5 (submit/process) only on a FRESH finalize (status actually flipped
+// pending_uploads->received, i.e. updated=true). Runs AFTER Respond, so the
+// seller's confirmation isn't blocked by the ~10s Gemini review. Re-finalize
+// (updated=false) does not re-trigger. Errors are swallowed (best-effort).
+const triggerCode = `
+const fin = $('Finalize submission').first().json || {};
+const sid = ($('Webhook').first().json.body || {}).submission_id;
+if (fin.updated === true && sid) {
+  try {
+    await this.helpers.httpRequest({ method: 'POST', url: 'http://127.0.0.1:5678/webhook/submit/process',
+      headers: { 'Content-Type': 'application/json' }, body: { submission_id: sid }, json: true });
+  } catch (e) { /* best-effort; WF-5 runs to completion independently even if this connection times out */ }
+}
+return [{ json: { triggered: fin.updated === true } }];
+`.trim();
+
 const wf = {
   name: "WF-4 submit-finalize",
   nodes: [
@@ -81,15 +97,20 @@ const wf = {
       id: "r4", name: "Respond", type: "n8n-nodes-base.respondToWebhook", typeVersion: 1.1,
       position: [880, 0],
     },
+    {
+      parameters: { jsCode: triggerCode },
+      id: "trig", name: "Trigger AI", type: "n8n-nodes-base.code", typeVersion: 2, position: [1100, 0],
+    },
   ],
   connections: {
     Webhook: { main: [[{ node: "Prep", type: "main", index: 0 }]] },
     Prep: { main: [[{ node: "Finalize submission", type: "main", index: 0 }]] },
     "Finalize submission": { main: [[{ node: "Shape", type: "main", index: 0 }]] },
     Shape: { main: [[{ node: "Respond", type: "main", index: 0 }]] },
+    Respond: { main: [[{ node: "Trigger AI", type: "main", index: 0 }]] },
   },
   settings: {},
 };
 
-writeFileSync(new URL("./wf4.json", import.meta.url), JSON.stringify(wf, null, 2));
-console.log("wrote wf4.json");
+writeFileSync(new URL("./workflows/WF-4-submit-finalize.json", import.meta.url), JSON.stringify(wf, null, 2));
+console.log("wrote workflows/WF-4-submit-finalize.json (" + JSON.stringify(wf).length + " bytes)");
