@@ -165,6 +165,13 @@
     const base = (file.name || "photo").replace(/\.[^.]+$/, "");
     return new File([jpeg], base + ".jpg", { type: "image/jpeg" });
   }
+  // Diagnostic: first 16 bytes (magic number) identify the true format.
+  async function fileSig(file) {
+    try {
+      const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+      return Array.from(buf).map((b) => b.toString(16).padStart(2, "0")).join(" ");
+    } catch { return "n/a"; }
+  }
 
   // <img> -> canvas -> resized JPEG blob (also strips EXIF). Rejects "decode_failed"
   // when the browser can't decode the source image.
@@ -210,7 +217,11 @@
       // even labeled .jpg while still being HEIC bytes), so detection misses them.
       console.warn("native decode failed; trying HEIC converter fallback —", file.type, file.name);
       try { return await rasterize(await convertHeic(file)); }
-      catch (e2) { console.error("HEIC convert (fallback) failed", e2); throw new Error("heic_convert_failed [" + (file.type||"no-type") + "]: " + ((e2 && e2.message) || e2)); }
+      catch (e2) {
+        console.error("HEIC convert (fallback) failed", e2);
+        const sig = await fileSig(file);
+        throw new Error("decode+convert failed [type=" + (file.type||"none") + " size=" + file.size + " sig=" + sig + "]: " + ((e2 && e2.message) || e2));
+      }
     }
   }
 
