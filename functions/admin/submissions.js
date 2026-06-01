@@ -14,6 +14,8 @@ export async function onRequestGet(context) {
   let subs = [];
   try { const r = await postToN8n(env, "admin/submissions", { status, q, limit: 100 }, 8000); subs = (r && r.submissions) || []; } catch (_) {}
   const opts = ['<option value="">all statuses</option>'].concat(STATUSES.map(s => `<option value="${s}"${s===status?" selected":""}>${s}</option>`)).join("");
+  const exportQs = new URLSearchParams({ ...(status ? { status } : {}), ...(q ? { q } : {}) }).toString();
+  const exportHref = "/admin/api/export-csv" + (exportQs ? "?" + exportQs : "");
   const rows = subs.map(s => `<tr>
     <td><a href="/admin/submission/${esc(s.submission_id)}">${esc(s.short_id)}</a></td>
     <td><span class="badge ${esc(s.decision||"")}">${esc(s.decision||"—")}</span></td>
@@ -24,6 +26,6 @@ export async function onRequestGet(context) {
        <div><label>Status</label><select name="status">${opts}</select></div>
        <div><label>Search</label><input name="q" value="${esc(q)}" placeholder="short id / email / brand"></div>
        <div><button class="btn primary" type="submit">Filter</button></div></form>
-     <div class="card"><p class="muted">${subs.length} result(s)</p>
+     <div class="card"><p class="muted">${subs.length} result(s) <a class="btn ghost" style="float:right" href="${esc(exportHref)}">Export CSV</a></p>
        <table><thead><tr><th>ID</th><th>AI</th><th>Status</th><th>Merchant</th><th>Seller</th><th>Item</th></tr></thead><tbody>${rows||'<tr><td colspan=6 class=muted>none</td></tr>'}</tbody></table></div>`);
 }
