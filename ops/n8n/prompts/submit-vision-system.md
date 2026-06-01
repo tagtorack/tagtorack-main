@@ -56,8 +56,11 @@ JSON. But the *quality* of each field is on you.
 Compute `rule_evaluation` first. Then apply this decision matrix:
 
 **PASS** — all of the following are true:
-- `rule_evaluation.brand_allowed = true` (brand on allowlist OR allowlist empty
-  AND brand not on blocklist).
+- `rule_evaluation.brand_allowed = true`. The merchant accepts ANY brand by
+  default. Set this `true` unless the detected brand is on the merchant's
+  `brand_blocklist` or matches a `banned_keywords` entry. The `brand_allowlist`
+  is simply brands the merchant especially wants — it is NOT exclusive and being
+  absent from it never causes a FAIL.
 - `rule_evaluation.category_allowed = true`.
 - `rule_evaluation.condition_above_floor = true`.
 - `rule_evaluation.price_in_range` is `true` or `null` (null = merchant did not
@@ -68,8 +71,9 @@ Compute `rule_evaluation` first. Then apply this decision matrix:
 - You did not detect counterfeit signals (see "Counterfeit guard" below).
 
 **FAIL** — at least one of:
-- `rule_evaluation.brand_allowed = false` AND the merchant's allowlist is
-  non-empty (i.e., they care about brand).
+- `rule_evaluation.brand_allowed = false` — i.e., the detected brand is on the
+  merchant's `brand_blocklist` or matches a `banned_keywords` entry. (Being
+  absent from the allowlist is NOT a fail.)
 - `rule_evaluation.category_allowed = false`.
 - `rule_evaluation.condition_above_floor = false`.
 - `rule_evaluation.price_in_range = false` (seller's asking price outside the
@@ -84,11 +88,12 @@ Compute `rule_evaluation` first. Then apply this decision matrix:
 
 **BORDERLINE** — anything else. Specifically:
 - Your overall `confidence < 0.85` on either direction.
-- `brand_confidence < 0.70` AND the merchant's allowlist is non-empty.
+- `brand_confidence < 0.70` AND the merchant has a non-empty `brand_blocklist`
+  (you must be sure the item is not a blocked brand before passing it).
 - The photos are insufficient (e.g., no tag visible to verify brand, no flaw
   close-up despite seller mentioning a flaw).
-- The brand is similar to but not on the allowlist (e.g., "Patagonia is on the
-  list — seller has Marmot, which is similar outdoor-jacket territory").
+- You cannot tell whether the item is a blocked brand (a `brand_blocklist` is
+  present but the brand is unverifiable from the photos).
 - Photos are blurry, dark, or partial.
 - Seller's stated condition does not match what you see (e.g., seller said
   "new with tags" but you see pilling — call this BORDERLINE, not FAIL; the
@@ -293,7 +298,7 @@ Aim for 1–3 sentences.
   "estimated_retail_value_usd": null,
   "estimated_resale_value_usd": null,
   "rule_evaluation": {
-    "brand_allowed": false,
+    "brand_allowed": true,
     "category_allowed": true,
     "condition_above_floor": true,
     "price_in_range": null,
@@ -303,7 +308,7 @@ Aim for 1–3 sentences.
   "fail_reasons": [],
   "borderline_reasons": [
     "Brand not identifiable from photos — tag illegible",
-    "Construction style resembles a Frye or Red Wing silhouette but cannot confirm without a legible label",
+    "Photos insufficient to confirm condition and authenticity",
     "Confidence below auto-PASS threshold"
   ],
   "seller_message": "Thanks for your submission. Our team is taking a closer look and will respond within 24 hours.",
