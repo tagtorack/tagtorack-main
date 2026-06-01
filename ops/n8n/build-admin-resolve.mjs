@@ -94,7 +94,7 @@ if (action==='approve') {
   const ap=(toks.find(t=>t.action==='approve')||{}).raw, rj=(toks.find(t=>t.action==='reject')||{}).raw;
   await send(r.merchant_email, 'New submission to review ('+r.short_id+')', W('New item for '+(r.merchant_name||'your store'),'<p>An operator routed this for your review.</p><p><a href="'+base+'/submit/decision?t='+ap+'">Approve</a> | <a href="'+base+'/submit/decision?t='+rj+'">Reject</a></p>'));
 } else if (action==='requeue') {
-  try { await this.helpers.httpRequest({ method:'POST', url:'http://localhost:5678/webhook/submit/process', headers:{ 'Content-Type':'application/json' }, body:{ submission_id: $('Webhook').first().json.body.submission_id }, json:true }); } catch(e) {}
+  try { await this.helpers.httpRequest({ method:'POST', url:'http://127.0.0.1:5678/webhook/submit/process', headers:{ 'Content-Type':'application/json' }, body:{ submission_id: $('Webhook').first().json.body.submission_id }, json:true }); } catch(e) {}
 }
 return [{ json: { statusCode: 200, body: { ok:true, status: r.new_status } } }];
 `.trim();
