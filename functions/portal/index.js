@@ -50,5 +50,24 @@ export async function onRequestGet(context) {
   const head = `<div class="top"><h1>${esc(session.slug)} — Queue (${subs.length})</h1>
     <span><a href="/portal/history">History</a> · <a href="/portal/settings">Settings</a> · <a href="/portal/analytics">Analytics</a> · <a href="/portal/logout">Sign out</a></span></div>`;
   const list = subs.length ? subs.map((s) => card(s, csrf)).join("") : `<div class="card"><p class="muted">No submissions awaiting review.</p></div>`;
-  return html(head + list);
+
+  const origin = new URL(request.url).origin;
+  const sellerLink = `${origin}/submit/m/${session.slug}`;
+  const shareCard = `<div class="card" style="display:flex;flex-wrap:wrap;gap:24px;align-items:center">
+    <div style="flex:1;min-width:260px">
+      <h2>Share your store</h2>
+      <p class="muted">Send this link to sellers so they can submit items to you — text or email it, add it to your website or Instagram bio, or print the QR for a "scan to sell" sign at the counter.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <input id="share-link" readonly value="${esc(sellerLink)}" aria-label="Your seller link" style="flex:1;min-width:240px;font-family:var(--mono);font-size:13px">
+        <button class="btn approve" type="button" id="copy-link" data-link="${esc(sellerLink)}">Copy link</button>
+      </div>
+      <p id="copy-msg" class="muted" role="status" style="min-height:18px;margin:8px 0 0"></p>
+    </div>
+    <div style="text-align:center">
+      <div id="qr" data-link="${esc(sellerLink)}" style="width:172px;height:172px;display:grid;place-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px;box-shadow:var(--sh-sm)"></div>
+      <a class="btn" id="qr-download" download="${esc(session.slug)}-tagtorack-qr.svg" style="margin-top:10px;font-size:13px;padding:8px 14px">Download QR</a>
+    </div>
+  </div>`;
+  const scripts = `<script src="/portal/assets/qrcode.js" defer></script><script src="/portal/assets/share.js" defer></script>`;
+  return html(head + shareCard + list + scripts);
 }
