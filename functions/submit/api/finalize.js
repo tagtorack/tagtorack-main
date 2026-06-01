@@ -8,6 +8,7 @@
 // Returns: { ok: true, short_id }
 
 import { postToN8n, json, isAllowedOrigin, isJsonContentType } from "../../_shared/n8n-fanout.js";
+import { mintStatusToken } from "../../_shared/status-token.js";
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204 });
@@ -53,8 +54,11 @@ export async function onRequestPost(context) {
     return json(502, { ok: false, error: "upstream_failed" });
   }
 
+  let status_token = "";
+  try { status_token = await mintStatusToken(env, body.submission_id); } catch (_) {}
   return json(200, {
     ok: true,
     short_id: (resp && resp.short_id) || body.submission_id.slice(0, 8),
+    status_token,
   });
 }
