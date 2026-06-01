@@ -1,0 +1,112 @@
+{
+  "name": "WF-A8 admin-audit",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/audit",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-audit-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nSELECT a.id::text AS id, a.event_type, a.decision, a.confidence, a.payload, a.created_at,\n       a.submission_id::text AS submission_id\nFROM audit_log a, inp\nWHERE (NULLIF(inp.d->>'event_type','') IS NULL OR a.event_type = inp.d->>'event_type')\n  AND (NULLIF(inp.d->>'submission_id','') IS NULL OR a.submission_id = (inp.d->>'submission_id')::uuid)\nORDER BY a.created_at DESC\nLIMIT (SELECT LEAST(coalesce(NULLIF(d->>'limit','')::int,100),500) FROM inp)\nOFFSET (SELECT coalesce(NULLIF(d->>'offset','')::int,0) FROM inp);",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i=>i.json).filter(r=>r && r.id);\nreturn [{ json: { statusCode: 200, body: { ok:true, events: rows } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

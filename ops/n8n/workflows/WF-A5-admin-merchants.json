@@ -1,0 +1,112 @@
+{
+  "name": "WF-A5 admin-merchants",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/merchants",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-merchants-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nSELECT m.id::text AS merchant_id, m.slug, m.display_name, m.contact_email, m.dropoff_address,\n       m.dropoff_hours, m.calcom_event_url, m.brand_color, m.public_intro, m.status, m.rule_set,\n       (SELECT count(*) FROM seller_submissions s WHERE s.merchant_id=m.id) AS total_submissions,\n       (SELECT count(*) FROM seller_submissions s WHERE s.merchant_id=m.id AND s.status='merchant_review') AS pending\nFROM merchants m, inp\nWHERE (NULLIF(inp.d->>'slug','') IS NULL OR m.slug = inp.d->>'slug')\nORDER BY m.display_name;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+        }
+      },
+      "id": "pg",
+      "name": "List",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i=>i.json).filter(r=>r && r.merchant_id);\nreturn [{ json: { statusCode: 200, body: { ok:true, merchants: rows } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

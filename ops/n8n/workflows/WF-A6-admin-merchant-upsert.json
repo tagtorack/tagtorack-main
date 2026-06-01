@@ -1,0 +1,136 @@
+{
+  "name": "WF-A6 admin-merchant-upsert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/merchant-upsert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-merchant-upsert-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nlet rule_set = b.rule_set;\nif (typeof rule_set === 'string') { try { rule_set = JSON.parse(rule_set); } catch { return [{ json: { payload:{ valid:false, error:'bad_rule_set_json' } } }]; } }\nrule_set = rule_set || {};\nconst slug = String(b.slug||'').trim().toLowerCase();\nconst floor = String(rule_set.condition_floor||'good');\nconst okSlug = /^[a-z0-9-]{2,64}$/.test(slug);\nconst okFloor = ['new_with_tags','excellent','good','fair'].includes(floor);\nconst valid = !!(okSlug && okFloor && b.display_name && b.contact_email && b.dropoff_address);\nreturn [{ json: { payload: {\n  valid, error: valid ? null : (!okSlug?'bad_slug':!okFloor?'bad_condition_floor':'missing_fields'),\n  slug, display_name: b.display_name||'', contact_email: b.contact_email||'', dropoff_address: b.dropoff_address||'',\n  dropoff_hours: b.dropoff_hours||'Tue\\u2013Sat, 11am\\u20136pm', calcom_event_url: b.calcom_event_url||null,\n  brand_color: /^#[0-9A-Fa-f]{6}$/.test(String(b.brand_color||'')) ? b.brand_color : '#6a40c9',\n  public_intro: b.public_intro||'', status: ['active','paused','archived'].includes(b.status)?b.status:'active',\n  rule_set, operator_email: b.operator_email||''\n} } }];"
+      },
+      "id": "prep",
+      "name": "Prep",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nv AS (SELECT (d->>'valid')::boolean AS valid, d FROM inp),\nup AS (\n  INSERT INTO merchants (slug, display_name, contact_email, dropoff_address, dropoff_hours, calcom_event_url,\n    brand_color, public_intro, status, rule_set,\n    accepted_categories, brand_allowlist, brand_blocklist, condition_floor, updated_at)\n  SELECT d->>'slug', d->>'display_name', d->>'contact_email', d->>'dropoff_address', d->>'dropoff_hours',\n    NULLIF(d->>'calcom_event_url',''), d->>'brand_color', d->>'public_intro', d->>'status', d->'rule_set',\n    ARRAY(SELECT jsonb_array_elements_text(coalesce(d->'rule_set'->'categories_accepted','[]'::jsonb))),\n    ARRAY(SELECT jsonb_array_elements_text(coalesce(d->'rule_set'->'brand_allowlist','[]'::jsonb))),\n    ARRAY(SELECT jsonb_array_elements_text(coalesce(d->'rule_set'->'brand_blocklist','[]'::jsonb))),\n    coalesce(d->'rule_set'->>'condition_floor','good'), NOW()\n  FROM v WHERE v.valid\n  ON CONFLICT (slug) DO UPDATE SET\n    display_name=EXCLUDED.display_name, contact_email=EXCLUDED.contact_email, dropoff_address=EXCLUDED.dropoff_address,\n    dropoff_hours=EXCLUDED.dropoff_hours, calcom_event_url=EXCLUDED.calcom_event_url, brand_color=EXCLUDED.brand_color,\n    public_intro=EXCLUDED.public_intro, status=EXCLUDED.status, rule_set=EXCLUDED.rule_set,\n    accepted_categories=EXCLUDED.accepted_categories, brand_allowlist=EXCLUDED.brand_allowlist,\n    brand_blocklist=EXCLUDED.brand_blocklist, condition_floor=EXCLUDED.condition_floor, updated_at=NOW()\n  RETURNING id, slug\n),\naud AS (\n  INSERT INTO audit_log (agent_run_id, event_type, payload)\n  SELECT gen_random_uuid(), 'operator_merchant_upsert', jsonb_build_object('operator',(SELECT d->>'operator_email' FROM inp),'slug',(SELECT slug FROM up))\n  WHERE (SELECT id FROM up) IS NOT NULL RETURNING id\n)\nSELECT (SELECT (d->>'valid')::boolean FROM inp) AS valid, (SELECT d->>'error' FROM inp) AS error, (SELECT slug FROM up) AS slug;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.payload) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Upsert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$json;\nif (!r.valid) return [{ json: { statusCode: 400, body: { ok:false, error: r.error||'invalid' } } }];\nreturn [{ json: { statusCode: 200, body: { ok:true, slug: r.slug } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep": {
+      "main": [
+        [
+          {
+            "node": "Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

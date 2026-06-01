@@ -1,0 +1,112 @@
+{
+  "name": "WF-A2 admin-submission",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "admin/submission",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "admin-submission-wh"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nsid AS (SELECT NULLIF(inp.d->>'submission_id','')::uuid AS id FROM inp)\nSELECT\n  to_jsonb(s.*) AS submission,\n  jsonb_build_object('slug',m.slug,'display_name',m.display_name,'contact_email',m.contact_email,'calcom_event_url',m.calcom_event_url) AS merchant,\n  jsonb_build_object('email',se.email,'name',se.name,'zip',se.zip) AS seller,\n  (SELECT to_jsonb(d2.*) FROM submission_decisions d2 WHERE d2.submission_id=s.id ORDER BY created_at DESC LIMIT 1) AS decision,\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('r2_key',p.r2_key,'role',p.role,'ord',p.ord) ORDER BY p.ord),'[]'::jsonb) FROM submission_photos p WHERE p.submission_id=s.id) AS photos,\n  (SELECT coalesce(jsonb_agg(jsonb_build_object('event_type',a.event_type,'decision',a.decision,'confidence',a.confidence,'payload',a.payload,'created_at',a.created_at) ORDER BY a.created_at DESC),'[]'::jsonb) FROM audit_log a WHERE a.submission_id=s.id) AS history\nFROM seller_submissions s\nJOIN merchants m ON m.id=s.merchant_id\nJOIN sellers se ON se.id=s.seller_id\nWHERE s.id=(SELECT id FROM sid);",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+        }
+      },
+      "id": "pg",
+      "name": "Load",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "function presignGet(r2key, expiresSec) {\n  const crypto = require('crypto');\n  const acct=$env.R2_ACCOUNT_ID, ak=$env.R2_ACCESS_KEY_ID, sk=$env.R2_SECRET_ACCESS_KEY, bucket=$env.R2_BUCKET;\n  const host = acct + '.r2.cloudflarestorage.com';\n  const amzDate = new Date().toISOString().replace(/[-:]|\\.\\d{3}/g,'');\n  const day = amzDate.slice(0,8);\n  const scope = day + '/auto/s3/aws4_request';\n  const enc = (s)=>encodeURIComponent(s).replace(/[!'()*]/g,(c)=>'%'+c.charCodeAt(0).toString(16).toUpperCase());\n  const sha = (s)=>crypto.createHash('sha256').update(s).digest('hex');\n  const hmac = (k,m)=>crypto.createHmac('sha256',k).update(m).digest();\n  const uri = '/'+enc(bucket)+'/'+r2key.split('/').map(enc).join('/');\n  const q = { 'X-Amz-Algorithm':'AWS4-HMAC-SHA256','X-Amz-Credential':ak+'/'+scope,'X-Amz-Date':amzDate,'X-Amz-Expires':String(expiresSec),'X-Amz-SignedHeaders':'host' };\n  const qs = Object.keys(q).sort().map(k=>enc(k)+'='+enc(q[k])).join('&');\n  const creq = ['GET',uri,qs,'host:'+host+'\\n','host','UNSIGNED-PAYLOAD'].join('\\n');\n  const sts = ['AWS4-HMAC-SHA256',amzDate,scope,sha(creq)].join('\\n');\n  let k=hmac('AWS4'+sk,day); k=hmac(k,'auto'); k=hmac(k,'s3'); k=hmac(k,'aws4_request');\n  return 'https://'+host+uri+'?'+qs+'&X-Amz-Signature='+hmac(k,sts).toString('hex');\n}\nconst rows = $input.all().map(i=>i.json).filter(r=>r && r.submission);\nif (!rows.length) return [{ json: { statusCode: 404, body: { ok:false, error:'not_found' } } }];\nconst r = rows[0];\nconst photos = (r.photos||[]).map(p=>({ role:p.role, ord:p.ord, url: presignGet(p.r2_key, 86400) }));\nreturn [{ json: { statusCode: 200, body: { ok:true, submission:r.submission, merchant:r.merchant, seller:r.seller, decision:r.decision, photos, history:r.history } } }];"
+      },
+      "id": "shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "r",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Load",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}
