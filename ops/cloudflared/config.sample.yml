@@ -1,0 +1,10 @@
+# Mirror of the live ~/.cloudflared/config.yml (the tunnel UUID is not a secret;
+# the *.json credentials file IS — it is never committed). See README.md.
+# 127.0.0.1 (not localhost): n8n binds IPv4 loopback only; localhost->::1 is refused.
+tunnel: 3877d0d7-0818-4387-8005-f034f5d0a8ce
+credentials-file: C:\Users\cmcelvain\.cloudflared\3877d0d7-0818-4387-8005-f034f5d0a8ce.json
+
+ingress:
+  - hostname: n8n.tagtorack.com
+    service: http://127.0.0.1:5678
+  - service: http_status:404

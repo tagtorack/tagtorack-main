@@ -2,6 +2,13 @@
 .thumbnail
 docs
 uploads
+screenshots
 README.md
 .dev.vars
+.env.example
 ops
+.git
+.gitignore
+.wrangler
+.mcp.json
+.assetsignore

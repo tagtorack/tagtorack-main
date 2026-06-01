@@ -37,7 +37,7 @@ export async function onRequestGet(context) {
   // Bare /submit/ → friendly notice. Sellers must come through a merchant link.
   if (segments.length === 0) {
     return new Response(
-      `<!doctype html><html><head><meta charset="utf-8"><title>Tag to Rack Submit</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/css/styles.css"></head><body><main style="max-width:520px;margin:60px auto;padding:0 20px;font-family:var(--body);"><h1 style="font-family:var(--display);">Pick a store first</h1><p style="color:var(--ink-soft);">The Tag to Rack Submit portal is per-store. Use the link the store gave you (it looks like <code>submit.tagtorack.com/m/&lt;store&gt;</code>) — or visit <a href="/" style="color:var(--violet-ink);">tagtorack.com</a> to learn more.</p></main></body></html>`,
+      `<!doctype html><html><head><meta charset="utf-8"><title>Tag to Rack Submit</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/assets/css/styles.css"></head><body><main style="max-width:520px;margin:60px auto;padding:0 20px;font-family:var(--body);"><h1 style="font-family:var(--display);">Pick a store first</h1><p style="color:var(--ink-soft);">The Tag to Rack Submit portal is per-store. Use the link the store gave you (it looks like <code>tagtorack.com/submit/m/&lt;store&gt;</code>) — or visit <a href="/" style="color:var(--violet-ink);">tagtorack.com</a> to learn more.</p></main></body></html>`,
       { status: 404, headers: { "Content-Type": "text/html; charset=utf-8" } },
     );
   }

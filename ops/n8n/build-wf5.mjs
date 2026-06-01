@@ -195,7 +195,7 @@ if (!['PASS','FAIL','BORDERLINE'].includes(decision)) { decision = 'BORDERLINE';
 
 const status = decision === 'PASS' ? 'merchant_review' : decision === 'FAIL' ? 'ai_failed' : 'ai_borderline';
 const usage = v.usage || {};
-const base = ($env.SUBMIT_PUBLIC_BASE || 'https://submit.tagtorack.com').replace(/\\/$/, '');
+const base = ($env.SUBMIT_PUBLIC_BASE || 'https://tagtorack.com').replace(/\\/$/, '');
 
 // mint approve/reject tokens on PASS
 let tokens = [];
@@ -254,7 +254,7 @@ const wrap = (title, bodyHtml) => '<div style="font-family:sans-serif;max-width:
 // Status link token — base64url encoding MUST match functions/_shared/status-token.js
 // (base64 -> +→-, /→_, strip =), signed over the raw submission_id with the shared secret.
 const _crypto = require('crypto');
-const _statusBase = ($env.SUBMIT_PUBLIC_BASE || 'https://submit.tagtorack.com').replace(/\\/$/, '');
+const _statusBase = ($env.SUBMIT_PUBLIC_BASE || 'https://tagtorack.com').replace(/\\/$/, '');
 const _sid = claim.submission_id;
 const _b64url = (b) => b.replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
 const _encId = _b64url(Buffer.from(_sid, 'utf8').toString('base64'));
