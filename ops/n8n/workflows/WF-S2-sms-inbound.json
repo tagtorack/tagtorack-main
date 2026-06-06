@@ -1,0 +1,120 @@
+{
+  "name": "WF-S2 sms-inbound",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sms/inbound",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "sms-inbound-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst raw = String(b.Body || '').trim().toUpperCase();\nconst STOP  = ['STOP','STOPALL','UNSUBSCRIBE','CANCEL','END','QUIT'];\nconst START = ['START','UNSTOP','YES'];\nlet action = 'none';\nif (STOP.includes(raw)) action = 'stop';\nelse if (START.includes(raw)) action = 'start';\nconst last10 = String(b.From || '').replace(/[^0-9]/g, '').slice(-10);\nreturn [{ json: { action, last10 } }];"
+      },
+      "id": "classify",
+      "name": "Classify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nUPDATE sellers\n   SET sms_opted_out_at = CASE WHEN (SELECT d->>'action' FROM inp) = 'stop' THEN NOW() ELSE NULL END\n WHERE (SELECT d->>'action' FROM inp) IN ('stop','start')\n   AND length(COALESCE((SELECT d->>'last10' FROM inp), '')) = 10\n   AND right(regexp_replace(phone, '[^0-9]', '', 'g'), 10) = (SELECT d->>'last10' FROM inp)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ action: $json.action, last10: $json.last10 }) }}"
+        }
+      },
+      "id": "apply",
+      "name": "Apply opt-out",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/xml"
+              }
+            ]
+          }
+        }
+      },
+      "id": "rxml",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify": {
+      "main": [
+        [
+          {
+            "node": "Apply opt-out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply opt-out": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

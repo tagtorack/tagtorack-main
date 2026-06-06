@@ -17,7 +17,7 @@ Goal: explain the product, build trust, book pilots.
 Fully clickable, real state + transitions.
 - [ ] Login
 - [ ] Dashboard overview (queue health, weekly numbers)
-- [ ] New item intake (photo workflow → AI fills card)
+- [ ] Seller submission intake (seller photos → AI pre-screens to rules)
 - [ ] Item review queue
 - [ ] Item detail
 - [ ] **Manager review / approval** (the core trust workflow)

@@ -8,7 +8,8 @@ WITH inp AS (SELECT $1::jsonb AS d),
 sub AS (
   SELECT s.id, s.status, left(s.id::text,8) AS short_id,
          m.display_name AS merchant_name, m.calcom_event_url,
-         se.email AS seller_email, se.name AS seller_name
+         se.email AS seller_email, se.name AS seller_name,
+         se.phone AS seller_phone, se.sms_consent, se.sms_opted_out_at
   FROM seller_submissions s
   JOIN merchants m ON m.id = s.merchant_id
   JOIN sellers se ON se.id = s.seller_id
@@ -37,7 +38,10 @@ SELECT (SELECT id FROM sub) IS NOT NULL AS found,
        (SELECT seller_email FROM sub) AS seller_email,
        (SELECT seller_name FROM sub) AS seller_name,
        (SELECT merchant_name FROM sub) AS merchant_name,
-       (SELECT calcom_event_url FROM sub) AS calcom_event_url;
+       (SELECT calcom_event_url FROM sub) AS calcom_event_url,
+       (SELECT seller_phone FROM sub) AS seller_phone,
+       (SELECT sms_consent FROM sub) AS sms_consent,
+       (SELECT sms_opted_out_at FROM sub) AS sms_opted_out_at;
 `.trim();
 
 const notify = `
@@ -47,28 +51,61 @@ if (!r.new_status) {
   // already decided (not in merchant_review) — idempotent no-op, no email
   return [{ json: { statusCode: 200, body: { ok:true, status: r.prev_status, already: true } } }];
 }
-// approve -> email seller the Cal.com drop-off link
-const enabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';
-if (r.new_status === 'merchant_approved' && enabled) {
-  const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();
-  const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';
-  const fromAddr = from.includes('<') ? (from.match(/<([^>]+)>/) || [,from])[1] : from;
+// approve -> notify the seller (email + opt-in SMS) with the Cal.com drop-off link
+if (r.new_status === 'merchant_approved') {
   const cal = r.calcom_event_url || ($env.CALCOM_BOOKING_URL || '');
-  const subject = (r.merchant_name || 'The store') + ' approved your item (' + r.short_id + ')';
-  const html = '<div style="font-family:sans-serif;max-width:520px"><h2>Good news, ' + (r.seller_name || 'there') + '</h2>' +
-    '<p>' + (r.merchant_name || 'The store') + ' approved your item. Book a drop-off time:</p>' +
-    '<p><a href="' + cal + '">Schedule your drop-off</a></p></div>';
-  try {
-    if (transport === 'resend') {
-      await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',
-        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },
-        body:{ from:'Tag to Rack <' + fromAddr + '>', to:[r.seller_email], subject, html }, json:true });
-    } else {
-      await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',
-        headers:{ 'Content-Type':'application/json' },
-        body:{ From:{ Email: fromAddr, Name:'Tag to Rack' }, To:[{ Email: r.seller_email }], Subject: subject, HTML: html }, json:true });
+
+  // --- Email (Cal.com drop-off link), gated on TT_AUTOSEND_ENABLED ---
+  const emailEnabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';
+  if (emailEnabled) {
+    const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();
+    const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';
+    const fromAddr = from.includes('<') ? (from.match(/<([^>]+)>/) || [,from])[1] : from;
+    const subject = (r.merchant_name || 'The store') + ' approved your item (' + r.short_id + ')';
+    const html = '<div style="font-family:sans-serif;max-width:520px"><h2>Good news, ' + (r.seller_name || 'there') + '</h2>' +
+      '<p>' + (r.merchant_name || 'The store') + ' approved your item. Book a drop-off time:</p>' +
+      '<p><a href="' + cal + '">Schedule your drop-off</a></p></div>';
+    try {
+      if (transport === 'resend') {
+        await this.helpers.httpRequest({ method:'POST', url:'https://api.resend.com/emails',
+          headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + $env.RESEND_API_KEY },
+          body:{ from:'Tag to Rack <' + fromAddr + '>', to:[r.seller_email], subject, html }, json:true });
+      } else {
+        await this.helpers.httpRequest({ method:'POST', url:'http://mailpit:8025/api/v1/send',
+          headers:{ 'Content-Type':'application/json' },
+          body:{ From:{ Email: fromAddr, Name:'Tag to Rack' }, To:[{ Email: r.seller_email }], Subject: subject, HTML: html }, json:true });
+      }
+    } catch (e) { /* best effort */ }
+  }
+
+  // --- SMS (opt-in, flag-gated), parallel to email. Sends only when:
+  //     TT_SMS_ENABLED=true AND seller consented AND not opted out AND a usable
+  //     phone is present. STOP/opt-out is enforced via sms_opted_out_at. ---
+  const smsEnabled = String($env.TT_SMS_ENABLED || '').toLowerCase() === 'true';
+  // Normalize to E.164 (US default): strip non-digits, prepend +1 for 10-digit numbers.
+  let toNum = String(r.seller_phone || '').replace(/[^0-9]/g, '');
+  if (toNum.length === 10) toNum = '1' + toNum;
+  toNum = toNum ? '+' + toNum : '';
+  if (smsEnabled && r.sms_consent && !r.sms_opted_out_at && toNum.length >= 12) {
+    const sid = $env.TWILIO_ACCOUNT_SID || '';
+    const tok = $env.TWILIO_AUTH_TOKEN || '';
+    const msgSvc = $env.TWILIO_MESSAGING_SERVICE_SID || '';
+    const fromNum = $env.TWILIO_FROM_NUMBER || '';
+    const smsBody = (r.merchant_name || 'The store') + ' approved your item! Book a drop-off: ' + cal + ' Reply STOP to opt out.';
+    if (sid && tok && (msgSvc || fromNum)) {
+      try {
+        const form = new URLSearchParams();
+        form.append('To', toNum);
+        if (msgSvc) form.append('MessagingServiceSid', msgSvc); else form.append('From', fromNum);
+        form.append('Body', smsBody);
+        await this.helpers.httpRequest({ method:'POST',
+          url:'https://api.twilio.com/2010-04-01/Accounts/' + sid + '/Messages.json',
+          headers:{ 'Content-Type':'application/x-www-form-urlencoded',
+            'Authorization':'Basic ' + Buffer.from(sid + ':' + tok).toString('base64') },
+          body: form.toString() });
+      } catch (e) { /* best effort */ }
     }
-  } catch (e) { /* best effort */ }
+  }
 }
 return [{ json: { statusCode: 200, body: { ok:true, status: r.new_status, tokens_invalidated: r.tokens_invalidated } } }];
 `.trim();

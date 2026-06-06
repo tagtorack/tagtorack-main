@@ -57,6 +57,15 @@ services:
       # crypto: R2 SigV4 presign (WF-5 photo fetch) + HMAC verify in Code nodes.
       NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
       TT_AUTOSEND_ENABLED: ${TT_AUTOSEND_ENABLED}
+      # Phase 2 — opt-in SMS drop-off notifications (WF-M4). Defaults OFF: leave
+      # TT_SMS_ENABLED unset/false until A2P 10DLC registration is approved and the
+      # SMS path is verified end-to-end. Twilio creds live in ops/.env (gitignored);
+      # set MESSAGING_SERVICE_SID *or* FROM_NUMBER (service SID is preferred for 10DLC).
+      TT_SMS_ENABLED: ${TT_SMS_ENABLED:-false}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_MESSAGING_SERVICE_SID: ${TWILIO_MESSAGING_SERVICE_SID:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
       TT_DAILY_FLASH_CAP: ${TT_DAILY_FLASH_CAP}
       TT_DAILY_PRO_CAP: ${TT_DAILY_PRO_CAP}
       INTAKE_WEBHOOK_SECRET: ${INTAKE_WEBHOOK_SECRET}

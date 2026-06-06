@@ -20,6 +20,7 @@ return [{ json: { payload: {
   phone: contact.phone || null,
   zip: contact.zip || null,
   consent_marketing: !!contact.consent_marketing,
+  sms_consent: !!contact.sms_consent,
   item_description,
   declared_brand: item.brand || null,
   declared_category: item.item_type || null,
@@ -40,18 +41,20 @@ m AS (
   WHERE slug = (SELECT d->>'merchant_slug' FROM input) AND status = 'active' LIMIT 1
 ),
 s AS (
-  INSERT INTO sellers (merchant_id, email, name, phone, zip, consent_marketing)
+  INSERT INTO sellers (merchant_id, email, name, phone, zip, consent_marketing, sms_consent)
   SELECT m.merchant_id,
          (SELECT d->>'email' FROM input),
          (SELECT d->>'name' FROM input),
          (SELECT d->>'phone' FROM input),
          (SELECT d->>'zip' FROM input),
-         COALESCE((SELECT (d->>'consent_marketing')::boolean FROM input), false)
+         COALESCE((SELECT (d->>'consent_marketing')::boolean FROM input), false),
+         COALESCE((SELECT (d->>'sms_consent')::boolean FROM input), false)
   FROM m
   ON CONFLICT (merchant_id, email) DO UPDATE
     SET name = EXCLUDED.name,
         phone = COALESCE(EXCLUDED.phone, sellers.phone),
         zip = COALESCE(EXCLUDED.zip, sellers.zip),
+        sms_consent = EXCLUDED.sms_consent,
         last_activity_at = NOW()
   RETURNING id AS seller_id, merchant_id
 ),

@@ -503,6 +503,7 @@
             name: contact.name, email: contact.email,
             phone: contact.phone || null, zip: contact.zip || null,
             consent_marketing: !!contact.consent_marketing,
+            sms_consent: !!contact.sms_consent,
           },
           photo_declarations: declaredPhotos,
           turnstile_token: turnstileToken,
