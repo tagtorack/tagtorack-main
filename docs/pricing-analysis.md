@@ -43,6 +43,8 @@ Why this isn't "being dumb cheap":
 3. **Patience play:** give your first 3–5 pilot stores a *founding rate* — $199/mo locked for 12 months in exchange for a case study + referrals. Collect hard ROI numbers (items sourced, revenue added, hours saved). Once you can show "Store X added $2,400/mo of rack inventory," you raise the list price with proof instead of hope — that's when $499–$999/mo becomes sellable to the bigger shops.
 4. **Anchor pricing to value visibly:** keep the "less than a part-time hire" framing, and when the eBay-comps engine is live, show each store its monthly "value sourced" number in the weekly report — that's your future price-increase ammunition.
 
+**Decision (Conner, Jun 2026):** two tiers only — **Standard $299/mo, unlimited submissions** and **Multi-location (custom)**. No Starter tier; revisit caps/usage pricing once volume data exists.
+
 **Net:** $499 trial → $299/mo Standard (with $149 Starter and a $199 founding rate for the first cohort). Expect $3.6k ARR/store initially; at 10 stores that's $36k ARR with near-zero marginal cost, and a credible path to 2–3× pricing once case studies exist.
 
 *Sources: ConsignCloud, SimpleConsign, Ricochet and Aravenda published/reviewed pricing (2026); small-clothing-store revenue and margin benchmarks. Not financial advice — final pricing is a business judgment call.*
