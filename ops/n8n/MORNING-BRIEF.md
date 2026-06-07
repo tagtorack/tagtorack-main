@@ -44,6 +44,14 @@ app already uses. No cloud scheduler, no Microsoft/Google account, no desktop ap
 
 ## Deploy (from repo root, on the machine running n8n)
 
+**Easiest — one command (imports + activates both workflows, safe to re-run):**
+
+```bash
+node ops/n8n/deploy-workflows.mjs
+```
+
+Or do it manually:
+
 ```bash
 # 1. (re)generate the workflow JSON
 node ops/n8n/build-morning-brief.mjs
