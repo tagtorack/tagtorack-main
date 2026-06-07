@@ -50,7 +50,9 @@ SELECT
        AND d.created_at > now() - interval '7 days')::numeric                                                      AS approved_resale_7d,
   (SELECT count(*) FROM dropoff_bookings WHERE start_at > now() AND status='confirmed')::int                       AS upcoming_dropoffs,
   (SELECT coalesce(request_count,0) FROM gemini_usage WHERE day=current_date AND model='pro')::int                 AS gemini_pro_today,
-  (SELECT coalesce(request_count,0) FROM gemini_usage WHERE day=current_date AND model='flash')::int               AS gemini_flash_today;
+  (SELECT coalesce(request_count,0) FROM gemini_usage WHERE day=current_date AND model='flash')::int               AS gemini_flash_today,
+  (SELECT count(*) FROM leads WHERE first_seen_at > now() - interval '24 hours')::int                            AS new_leads_24h,
+  (SELECT count(*) FROM leads WHERE status NOT IN ('closed_won','closed_lost'))::int                             AS open_leads;
 `.trim();
 
 const metrics = {
@@ -114,6 +116,22 @@ if (ghTok) {
   } catch (e) { dev = { ok: false, err: String(e.statusCode || e).slice(0, 120) }; }
 }
 
+// ---- revenue (Stripe; graceful — only runs if STRIPE_API_KEY is set in n8n) ----
+const stripeKey = $env.STRIPE_API_KEY || '';
+let rev = { ok: false, err: '' };
+if (stripeKey) {
+  try {
+    const since = Math.floor((Date.now() - 24 * 3600 * 1000) / 1000);
+    const r = await this.helpers.httpRequest({ method: 'GET',
+      url: 'https://api.stripe.com/v1/charges?limit=100&created[gte]=' + since,
+      headers: { 'Authorization': 'Bearer ' + stripeKey }, json: true, timeout: 12000 });
+    const ch = ((r && r.data) || []).filter(c => c.paid && c.status === 'succeeded');
+    const gross = ch.reduce((a, c) => a + (c.amount || 0), 0) / 100;
+    const refunded = ch.reduce((a, c) => a + (c.amount_refunded || 0), 0) / 100;
+    rev = { ok: true, count: ch.length, gross, net: gross - refunded };
+  } catch (e) { rev = { ok: false, err: String(e.statusCode || e).slice(0, 120) }; }
+}
+
 // ---- recommendations (rule-based) ----
 const recs = [];
 if (down.length)     recs.push('Investigate: ' + down.map(d => d.label + ' (' + (d.status||'no response') + ')').join(', ') + ' not responding.');
@@ -126,6 +144,8 @@ if (n(m.q_processing) > 0)      recs.push(n(m.q_processing) + ' submission(s) mi
 if (n(m.new_24h) === 0)         recs.push('No new submissions in 24h — top of funnel is quiet. Consider re-sharing merchant seller links.');
 if (dev.ok && dev.openPRs > 0)  recs.push(dev.openPRs + ' open pull request(s) awaiting review/merge.');
 if (dev.ok && dev.lastAgeH != null && dev.lastAgeH < 3) recs.push('Code shipped to main ' + dev.lastAgeH + 'h ago — main auto-deploys, so confirm the live site looks right (health above).');
+if (n(m.open_leads) > 0)        recs.push(n(m.open_leads) + ' open lead(s)' + (n(m.new_leads_24h) > 0 ? (', ' + n(m.new_leads_24h) + ' new in 24h — respond promptly.') : ' in the pipeline — keep them moving.'));
+if (rev.ok && rev.count > 0)    recs.push(rev.count + ' payment(s) in 24h totalling $' + Math.round(rev.gross) + '.');
 if (!recs.length)               recs.push('Nothing needs action — pipeline and site are healthy. Good morning.');
 
 // ---- compose HTML ----
@@ -164,6 +184,7 @@ const html =
     li('<b>' + n(m.expiring_48h) + '</b> expiring within 48h') +
     li('<b>' + n(m.q_pending_uploads) + '</b> awaiting seller photos · <b>' + n(m.q_processing) + '</b> mid-AI-review') +
     li('<b>' + n(m.upcoming_dropoffs) + '</b> drop-off(s) booked ahead') +
+    li('<b>' + n(m.open_leads) + '</b> open lead(s)' + (n(m.new_leads_24h) > 0 ? (' &middot; <b>' + n(m.new_leads_24h) + '</b> new in 24h') : '')) +
   '</ul>' +
 
   section('Last 24 hours') +
@@ -171,6 +192,10 @@ const html =
 
   section('Business at a glance') +
   statRow([ stat('Merchants', n(m.merchants_total)), stat('Sellers', n(m.sellers_total)), stat('Approved resale 7d', money(m.approved_resale_7d)), stat('Gemini pro/flash today', n(m.gemini_pro_today) + '/' + n(m.gemini_flash_today)) ]) +
+
+  section('Leads & revenue') +
+  statRow([ stat('New leads 24h', n(m.new_leads_24h)), stat('Open leads', n(m.open_leads)), stat('Revenue 24h', rev.ok ? money(rev.gross) : 'n/a'), stat('Payments 24h', rev.ok ? n(rev.count) : '—') ]) +
+  (rev.ok ? '' : '<p style="margin:2px 0 0;font-size:11px;color:#bbb">Stripe ' + (rev.err ? esc(rev.err) : 'not configured — set STRIPE_API_KEY in n8n for revenue') + '</p>') +
 
   section('Code & deploy') +
   (dev.ok

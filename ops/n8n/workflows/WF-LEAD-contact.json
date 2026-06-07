@@ -1,0 +1,114 @@
+{
+  "name": "WF-LEAD contact-capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "contact/lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "lead-wh",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        0
+      ],
+      "webhookId": "contact-lead-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = ($json.body) || {};\nconst clip = (s) => (typeof s === 'string' ? s.slice(0, 2000).trim() : '');\nconst email = clip(b.email).toLowerCase();\nconst name = clip(b.name);\nconst store = clip(b.store);\nconst okEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\nif (!okEmail || !name || !store) {\n  return [{ json: { statusCode: 400, body: { ok: false, error: 'missing_fields' }, payload: { flow: 'bad' } } }];\n}\nlet pref = clip(b.contact_pref).toLowerCase();\nif (!['email','text','either'].includes(pref)) pref = 'email';\nconst payload = { flow: 'ok', email, name, store, phone: clip(b.phone), contact_pref: pref, notes: clip(b.notes) };\nreturn [{ json: { statusCode: 200, body: { ok: true }, payload } }];"
+      },
+      "id": "lead-shape",
+      "name": "Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nINSERT INTO leads (email, name, store, phone, contact_pref, notes, source, status)\nSELECT d->>'email', d->>'name', d->>'store', NULLIF(d->>'phone',''),\n       d->>'contact_pref', NULLIF(d->>'notes',''), 'web_form', 'new'\nFROM inp\nWHERE (d->>'flow') = 'ok'\nON CONFLICT (email) DO UPDATE SET\n  name         = EXCLUDED.name,\n  store        = EXCLUDED.store,\n  phone        = COALESCE(EXCLUDED.phone, leads.phone),\n  contact_pref = EXCLUDED.contact_pref,\n  notes        = COALESCE(EXCLUDED.notes, leads.notes),\n  last_activity_at = NOW()\nRETURNING id, (xmax = 0) AS inserted;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.payload || { flow: 'bad' }) }}"
+        }
+      },
+      "id": "lead-insert",
+      "name": "Insert lead",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Shape').first().json.body }}",
+        "options": {
+          "responseCode": "={{ $('Shape').first().json.statusCode }}"
+        }
+      },
+      "id": "lead-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape": {
+      "main": [
+        [
+          {
+            "node": "Insert lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert lead": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

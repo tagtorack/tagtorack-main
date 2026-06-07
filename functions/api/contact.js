@@ -4,6 +4,8 @@
 // Hardened: method+origin+content-type checks, honeypot, size caps, timeouts.
 // Required env: RESEND_API_KEY, RECIPIENT_EMAIL. Optional: FROM_EMAIL.
 
+import { postToN8nFireAndForget } from "../_shared/n8n-fanout.js";
+
 const MAX_FIELD = 2000;
 const MAX_TOTAL = 6000;
 const FETCH_TIMEOUT_MS = 8000;
@@ -70,6 +72,15 @@ export async function onRequest(context) {
   if (!name || !store || !isEmail(email)) return json(400, { ok: false, error: "missing_fields" });
   if (name.length + store.length + email.length + phone.length + notes.length > MAX_TOTAL) {
     return json(413, { ok: false, error: "payload_too_large" });
+  }
+
+  // Persist the lead to Postgres (fire-and-forget via n8n) — additive only:
+  // never blocks or breaks the Resend email path below, and no-ops if the
+  // INTAKE_WEBHOOK_* vars aren't set. Surfaces in the daily morning brief.
+  if (typeof context.waitUntil === "function") {
+    context.waitUntil(
+      postToN8nFireAndForget(env, "contact/lead", { name, store, email, phone, contact_pref: pref, notes }),
+    );
   }
 
   const RECIPIENT_EMAIL = env.RECIPIENT_EMAIL;
