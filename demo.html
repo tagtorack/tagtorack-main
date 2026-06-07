@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css">
-<link rel="stylesheet" href="assets/css/components.css?v=3">
+<link rel="stylesheet" href="assets/css/components.css?v=4">
 <link rel="icon" href="/assets/img/logo-mark.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/assets/img/logo-mark.svg">
 <link rel="canonical" href="https://tagtorack.com/demo">
@@ -80,12 +80,13 @@
               <div class="demo-field"><span class="k">Condition</span><span class="v" data-f="condition">Excellent · gently used</span></div>
               <div class="demo-field span-2"><span class="k">Possible flaws</span><span class="v"><span class="flag">⚑</span> <span data-f="flaw">No flaws detected — verify at drop-off</span></span></div>
             </div>
-            <div class="demo-suggestion"><span class="chip ok" data-f="rec">Recommend · Consign</span><span class="price"><span data-f="price">$45–$60</span> <small>suggested</small></span></div>
+            <div class="demo-suggestion"><span class="chip ok" data-f="rec">Recommend · Consign</span><span class="price"><span data-f="price">$45–$60</span> <small>market band</small></span><span class="demo-comps"><b data-f="maxprice">List at $58</b> for max margin · <span data-f="comps">98% of 132 recent sold comps fell in this band</span></span></div>
             <div class="demo-pos"><span class="k">POS-ready listing</span><div class="pos-title" data-f="posTitle">REISS Cream Silk-Blend Blouse — Women's S, EUC</div><div class="pos-desc" data-f="posDesc">Elegant cream silk-blend blouse by REISS, size S. Excellent condition; collared V-neck, soft drape, curved hem.</div></div>
             <div class="demo-approval">
               <div class="ap-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> AI recommends — a manager makes the final call</div>
               <div class="ap-btns"><button class="ap-btn ap-approve" data-demo-approve>Approve</button><button class="ap-btn ap-adjust">Adjust</button><button class="ap-btn ap-pass">Pass</button></div>
             </div>
+            <p class="demo-fineprint">Price band estimated from recent comparable sold listings for this brand, category, and condition — not a guarantee. Your manager always sets the final price.</p>
           </div>
           <div class="demo-footer"><span class="demo-status" data-demo-status>Ready</span><button class="demo-replay" data-demo-replay><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 1 2.3 5.6M4 12V7m0 5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Replay</button></div>
         </div>
@@ -348,6 +349,6 @@
   </div>
 </footer>
 
-<script src="assets/js/site.js?v=2"></script>
+<script src="assets/js/site.js?v=3"></script>
 </body>
 </html>
