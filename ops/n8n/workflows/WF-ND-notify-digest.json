@@ -1,0 +1,125 @@
+{
+  "name": "WF-ND approval-digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "nd-cron",
+      "name": "Every 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inp AS (SELECT $1::jsonb AS d),\nq AS (\n  SELECT s.seller_id, s.merchant_id,\n         se.email AS seller_email, se.name AS seller_name,\n         m.display_name AS merchant_name, m.calcom_event_url,\n         jsonb_agg(jsonb_build_object(\n           'id', s.id, 'short_id', left(s.id::text, 8),\n           'brand', coalesce(s.declared_brand, ''), 'descr', s.item_description\n         ) ORDER BY s.merchant_decided_at) AS items,\n         max(s.merchant_decided_at) AS newest\n  FROM seller_submissions s\n  JOIN sellers se ON se.id = s.seller_id\n  JOIN merchants m ON m.id = s.merchant_id\n  WHERE s.status = 'merchant_approved' AND s.approval_notified_at IS NULL\n  GROUP BY s.seller_id, s.merchant_id, se.email, se.name, m.display_name, m.calcom_event_url\n)\nSELECT * FROM q\nWHERE newest < now() - make_interval(mins => coalesce((SELECT (d->>'quiet')::int FROM inp), 30));",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify({ quiet: Number($env.TT_NOTIFY_QUIET_MIN || 30) }) }}"
+        }
+      },
+      "id": "nd-batches",
+      "name": "Batches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(x => x.json).filter(r => r && r.seller_email);\nconst transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();\nconst from = $env.FROM_EMAIL || 'submissions@tagtorack.com';\nconst fromAddr = from.includes('<') ? (from.match(/<([^>]+)>/) || [, from])[1] : from;\nconst ids = []; let sent = 0; const errors = [];\n\nfor (const r of rows) {\n  const items = Array.isArray(r.items) ? r.items : [];\n  if (!items.length) continue;\n  const cal = r.calcom_event_url || ($env.CALCOM_BOOKING_URL || '');\n  const store = r.merchant_name || 'The store';\n  const n = items.length;\n  const subject = store + ' approved ' + (n === 1 ? 'your item' : n + ' of your items') + ' — book one drop-off';\n  const lis = items.map(it =>\n    '<li style=\"margin:6px 0\">' + (it.brand ? '<b>' + it.brand + '</b> — ' : '') + (it.descr || 'Item') +\n    ' <span style=\"color:#999;font-size:12px\">(' + it.short_id + ')</span></li>').join('');\n  const html =\n    '<div style=\"font-family:sans-serif;max-width:560px\">' +\n    '<h2>Good news, ' + (r.seller_name || 'there') + '!</h2>' +\n    '<p>' + store + ' approved ' + (n === 1 ? 'this item' : 'these ' + n + ' items') + ':</p>' +\n    '<ul style=\"padding-left:18px\">' + lis + '</ul>' +\n    '<p>Bring ' + (n === 1 ? 'it' : 'them all') + ' in one trip — book a single drop-off time:</p>' +\n    '<p><a href=\"' + cal + '\" style=\"display:inline-block;background:#6a40c9;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none\">Schedule your drop-off</a></p>' +\n    '<hr><p style=\"color:#888;font-size:12px\">Tag to Rack</p></div>';\n  try {\n    if (transport === 'resend') {\n      await this.helpers.httpRequest({ method: 'POST', url: 'https://api.resend.com/emails',\n        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + $env.RESEND_API_KEY },\n        body: { from: 'Tag to Rack <' + fromAddr + '>', to: [r.seller_email], subject, html }, json: true });\n    } else {\n      await this.helpers.httpRequest({ method: 'POST', url: 'http://mailpit:8025/api/v1/send',\n        headers: { 'Content-Type': 'application/json' },\n        body: { From: { Email: fromAddr, Name: 'Tag to Rack' }, To: [{ Email: r.seller_email }], Subject: subject, HTML: html }, json: true });\n    }\n    sent++;\n    for (const it of items) ids.push(it.id);\n  } catch (e) { errors.push(String(e).slice(0, 150)); }\n}\nreturn [{ json: { ids, sent, errors } }];"
+      },
+      "id": "nd-send",
+      "name": "Send digests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE seller_submissions\n   SET approval_notified_at = NOW()\n WHERE id IN (SELECT (jsonb_array_elements_text($1::jsonb))::uuid)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.ids || []) }}"
+        }
+      },
+      "id": "nd-mark",
+      "name": "Mark notified",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "GZJQdHGNtdLI18IW",
+          "name": "Postgres account"
+        }
+      },
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Every 10 min": {
+      "main": [
+        [
+          {
+            "node": "Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batches": {
+      "main": [
+        [
+          {
+            "node": "Send digests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send digests": {
+      "main": [
+        [
+          {
+            "node": "Mark notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Denver",
+    "executionOrder": "v1"
+  }
+}

@@ -69,6 +69,9 @@ async function deploy(buildScript, wfPath, label) {
 try {
   await deploy("ops/n8n/build-morning-brief.mjs", "ops/n8n/workflows/WF-MB-morning-brief.json", "Morning brief");
   await deploy("ops/n8n/build-contact-lead.mjs", "ops/n8n/workflows/WF-LEAD-contact.json", "Lead capture");
+  await deploy("ops/n8n/build-m-decide.mjs", "ops/n8n/workflows/WF-M4-merchant-decide.json", "Merchant decide (digest-gated)");
+  await deploy("ops/n8n/build-admin-resolve.mjs", "ops/n8n/workflows/WF-A4-admin-resolve.json", "Admin resolve (digest-gated)");
+  await deploy("ops/n8n/build-notify-digest.mjs", "ops/n8n/workflows/WF-ND-notify-digest.json", "Approval digest");
   console.log("\n✓ Done. Both workflows are imported and active in n8n.");
   console.log("  Tip: open WF-MB in n8n and click 'Execute workflow' to send yourself a test brief now.");
 } catch (e) {

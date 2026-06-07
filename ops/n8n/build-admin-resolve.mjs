@@ -85,7 +85,9 @@ const send = async (to, subject, html) => {
 const W = (t,b)=>'<div style="font-family:sans-serif;max-width:520px"><h2>'+t+'</h2>'+b+'</div>';
 if (action==='approve') {
   const cal = r.calcom_event_url || ($env.CALCOM_BOOKING_URL||'');
-  await send(r.seller_email, (r.merchant_name||'The store')+' approved your item ('+r.short_id+')', W('Good news, '+(r.seller_name||'there'),'<p>Approved. Book a drop-off:</p><p><a href="'+cal+'">Schedule drop-off</a></p>'));
+  // When TT_DIGEST_NOTIFY=true, WF-ND sends one batched email per seller instead.
+  if (String($env.TT_DIGEST_NOTIFY||'').toLowerCase()!=='true')
+    await send(r.seller_email, (r.merchant_name||'The store')+' approved your item ('+r.short_id+')', W('Good news, '+(r.seller_name||'there'),'<p>Approved. Book a drop-off:</p><p><a href="'+cal+'">Schedule drop-off</a></p>'));
 } else if (action==='reject') {
   await send(r.seller_email, 'Update on your submission ('+r.short_id+')', W('Thanks for your submission','<p>This item isn\\'t a match right now. You\\'re welcome to submit other pieces anytime.</p>'));
 } else if (action==='send_to_merchant') {

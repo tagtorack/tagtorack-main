@@ -56,7 +56,8 @@ if (r.new_status === 'merchant_approved') {
   const cal = r.calcom_event_url || ($env.CALCOM_BOOKING_URL || '');
 
   // --- Email (Cal.com drop-off link), gated on TT_AUTOSEND_ENABLED ---
-  const emailEnabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true';
+  // When TT_DIGEST_NOTIFY=true, WF-ND sends one batched email per seller instead.
+  const emailEnabled = String($env.TT_AUTOSEND_ENABLED || '').toLowerCase() === 'true' && String($env.TT_DIGEST_NOTIFY || '').toLowerCase() !== 'true';
   if (emailEnabled) {
     const transport = ($env.EMAIL_TRANSPORT || 'mailpit').toLowerCase();
     const from = $env.FROM_EMAIL || 'submissions@tagtorack.com';
