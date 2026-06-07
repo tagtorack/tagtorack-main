@@ -236,10 +236,15 @@
               <input type="checkbox" name="consent_marketing">
               <span class="muted small">Optional — let me know about other items {{merchant.display_name}} is looking for.</span>
             </label>
+            <!-- SMS opt-in — hidden while email-only. Re-enable when TT_SMS_ENABLED
+                 goes live (see ops/n8n/SMS-GOLIVE.md). Backend (sms_consent column,
+                 WF-2/WF-M4/WF-S2) stays in place and dormant; this just stops asking
+                 sellers to opt into texts we don't send yet.
             <label class="consent-check">
               <input type="checkbox" name="sms_consent">
               <span class="muted small">Optional — text me about my submission (e.g. when it's approved). Msg &amp; data rates may apply; reply STOP to opt out.</span>
             </label>
+            -->
           </div>
 
           <div class="field span-2 turnstile-row">

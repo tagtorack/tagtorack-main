@@ -67,10 +67,12 @@ finish the steps below.
    cd ops && docker compose up -d
    ```
 
-7. **Update the copy from "email" to "email or text"** (the truthfulness gate — only
-   after step 5 passes). Edit the seller confirmation/how-it-works lines in
-   `submit/portal.html` and the marketing drop-off lines (hero/how-it-works/features
-   in the root HTML + `docs/content.md`, which carry a "Phase 2" note at each spot).
+7. **Re-enable the SMS opt-in checkbox + update copy** (the truthfulness gate — only
+   after step 5 passes). In `submit/portal.html`, un-comment the `name="sms_consent"`
+   checkbox (it's commented out while email-only). Then change the seller
+   confirmation/how-it-works lines in `submit/portal.html` and the marketing drop-off
+   lines (hero/how-it-works/features in the root HTML + `docs/content.md`, which carry
+   a "Phase 2" note at each spot) from "email" to "email or text".
 
 8. **End-to-end with a real seller submission:** submit with a phone + SMS box checked,
    approve in `/portal`, confirm **both** email and SMS arrive with a working booking
