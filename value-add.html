@@ -75,7 +75,7 @@
           <li style="display:flex;gap:10px;"><span style="color:var(--ok);flex:none;">✓</span><span class="muted">Sellers submit photos from home; the AI screens <strong>before anyone drives anywhere</strong>. Only matches reach the queue.</span></li>
           <li style="display:flex;gap:10px;"><span style="color:var(--ok);flex:none;">✓</span><span class="muted">Drop-offs arrive <strong>pre-approved with the intake card already built</strong> — counter check-in takes seconds to minutes, not a dedicated employee (~10 hrs/mo, ~$150).</span></li>
           <li style="display:flex;gap:10px;"><span style="color:var(--ok);flex:none;">✓</span><span class="muted"><strong>Same 200 items a month</strong> — but now they're the best 200 the local market offered, screened to your brands, quality, and seasonality.</span></li>
-          <li style="display:flex;gap:10px;"><span style="color:var(--ok);flex:none;">✓</span><span class="muted">Market-comp pricing on every item: average realized price ~<strong>$24</strong>, sell-through ~78% — priced where comparable items actually sell.</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--ok);flex:none;">✓</span><span class="muted">Market-comp pricing on every item — priced where comparable items actually sell instead of gut feel. <strong>A 10–20% lift in average realized price is the pilot goal.</strong></span></li>
           <li style="display:flex;gap:10px;"><span style="color:var(--ok);flex:none;">✓</span><span class="muted">Sellers get a clear answer within a day, one combined email, one booked drop-off. <strong>No wasted trips, no counter rejections.</strong></span></li>
         </ul>
       </div>
@@ -88,17 +88,66 @@
   <div class="wrap">
     <div class="section-head center reveal">
       <span class="eyebrow center">The math</span>
-      <h2>What that swing is worth, month after month.</h2>
+      <h2>The hours are structural. The revenue lift is yours to model.</h2>
+      <p class="lead" style="margin-inline:auto;max-width:60ch;">Triage time collapsing is built into how the system works — that part is mechanical. The pricing lift depends on your market, so set the assumptions yourself below.</p>
     </div>
-    <div class="stat-row reveal" style="grid-template-columns:repeat(4,1fr);">
-      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ok);">+$944</div><div class="l">monthly rack revenue<br>(140×$20 → 156×$24 sold)</div></div>
-      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ok);">+$1,350</div><div class="l">intake labor reclaimed<br>(~100 hrs → ~10 hrs/mo)</div></div>
-      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ink-faint);">−$299</div><div class="l">Tag to Rack Standard</div></div>
-      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--violet-ink);">≈ +$2,000</div><div class="l">net per month —<br>about <strong>$24,000 a year</strong></div></div>
+    <div class="stat-row reveal" style="grid-template-columns:repeat(3,1fr);">
+      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ok);">~90 hrs</div><div class="l">of intake triage reclaimed per month<br>(bags at the counter &rarr; seconds at drop-off)</div></div>
+      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--violet-ink);">10&ndash;20%</div><div class="l">pricing-lift goal from market-comp bands &mdash;<br>modeled with your real numbers in the pilot</div></div>
+      <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ink-faint);">$299</div><div class="l">flat per month &mdash; no per-item fees</div></div>
     </div>
-    <p class="center muted reveal" style="margin-top:22px;max-width:72ch;margin-inline:auto;font-size:.9rem;">And the hours don't vanish — they move. The part-timer who used to dig through bags is now on the sales floor, merchandising and selling, which is where retail payroll actually earns its keep.</p>
+    <p class="center muted reveal" style="margin-top:20px;max-width:72ch;margin-inline:auto;font-size:.9rem;">And the hours don't vanish &mdash; they move. The part-timer who used to dig through bags is on the sales floor, merchandising and selling, which is where retail payroll actually earns its keep.</p>
+
+    <!-- RUN YOUR OWN NUMBERS -->
+    <div class="card card-pad-lg reveal" style="margin-top:30px;" data-va-calc>
+      <div class="section-head" style="margin-bottom:14px;">
+        <span class="eyebrow">Run your own numbers</span>
+        <h3 style="margin:.3em 0 .2em;">Your store, your assumptions.</h3>
+        <p class="muted" style="margin:0;font-size:.92rem;">Defaults reflect a typical small shop &mdash; change anything.</p>
+      </div>
+      <div class="form-grid" style="grid-template-columns:repeat(4,1fr);gap:14px;">
+        <div class="field"><label>Items accepted / month</label><input type="number" data-c="items" value="200" min="10" step="10"></div>
+        <div class="field"><label>Average sale price ($)</label><input type="number" data-c="price" value="20" min="1" step="1"></div>
+        <div class="field"><label>Intake hours / week</label><input type="number" data-c="hours" value="25" min="1" step="1"></div>
+        <div class="field"><label>Intake wage ($/hr)</label><input type="number" data-c="wage" value="15" min="7" step="1"></div>
+      </div>
+      <div class="field" style="margin-top:12px;max-width:300px;">
+        <label>Pricing-lift scenario</label>
+        <select data-c="lift"><option value="0.10" selected>Conservative &middot; +10%</option><option value="0.15">Moderate &middot; +15%</option><option value="0.20">Ambitious &middot; +20%</option></select>
+      </div>
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr);margin-top:24px;">
+        <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ok);font-size:1.8rem;" data-o="labor">$1,461</div><div class="l">monthly labor reclaimed</div></div>
+        <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ok);font-size:1.8rem;" data-o="rev">$280</div><div class="l">monthly pricing lift</div></div>
+        <div class="stat" style="text-align:center;"><div class="n" style="color:var(--ink-faint);font-size:1.8rem;">&minus;$299</div><div class="l">Tag to Rack Standard</div></div>
+        <div class="stat" style="text-align:center;"><div class="n" style="color:var(--violet-ink);font-size:1.8rem;" data-o="net">$1,442</div><div class="l">net per month &middot; <span data-o="year">$17,304</span>/yr</div></div>
+      </div>
+      <p class="muted" style="margin:14px 0 0;font-size:.78rem;">Assumes ~70% of accepted items sell and intake time drops to ~10% of today&rsquo;s hours once drop-offs arrive pre-approved. Estimates, not guarantees &mdash; in a pilot we model this with your actual data.</p>
+    </div>
   </div>
 </section>
+
+<script>
+(function(){
+  var root=document.querySelector("[data-va-calc]"); if(!root) return;
+  var $=function(k){return root.querySelector('[data-c="'+k+'"]');};
+  var O=function(k){return root.querySelector('[data-o="'+k+'"]');};
+  var fmt=function(n){return "$"+Math.round(n).toLocaleString("en-US");};
+  function calc(){
+    var items=+($("items").value||0), price=+($("price").value||0),
+        hours=+($("hours").value||0), wage=+($("wage").value||0), lift=+($("lift").value||0.1);
+    var before=hours*4.33, after=Math.max(2,before*0.1);
+    var labor=Math.max(0,(before-after)*wage);
+    var rev=items*price*0.7*lift;
+    var net=labor+rev-299;
+    O("labor").textContent=fmt(labor); O("rev").textContent=fmt(rev);
+    O("net").textContent=fmt(net); O("year").textContent=fmt(net*12);
+  }
+  ["items","price","hours","wage","lift"].forEach(function(k){
+    $(k).addEventListener("input",calc); $(k).addEventListener("change",calc);
+  });
+  calc();
+})();
+</script>
 
 <!-- WHERE THE LIFT COMES FROM -->
 <section>
