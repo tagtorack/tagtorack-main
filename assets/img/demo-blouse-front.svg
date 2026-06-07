@@ -12,12 +12,24 @@
   </defs>
   <rect width="400" height="300" fill="url(#bg)"/>
   <ellipse cx="200" cy="254" rx="128" ry="13" fill="#6b755e" opacity=".18"/>
-
-  <!-- sleeves -->
   <path d="M146 90 L98 122 Q90 129 96 139 L114 162 Q120 169 129 163 L154 144 Z" fill="url(#slv)" stroke="#7c8c6a" stroke-width="2" stroke-linejoin="round"/>
   <path d="M254 90 L302 122 Q310 129 304 139 L286 162 Q280 169 271 163 L246 144 Z" fill="url(#slv)" stroke="#7c8c6a" stroke-width="2" stroke-linejoin="round"/>
   <path d="M116 158 L132 146" stroke="#768663" opacity=".55" stroke-width="1.3" stroke-dasharray="3 3"/>
   <path d="M284 158 L268 146" stroke="#768663" opacity=".55" stroke-width="1.3" stroke-dasharray="3 3"/>
-
-  <!-- body -->
-  <path d="M150
+  <path d="M150 88 Q172 99 200 99 Q228 99 250 88 L260 97 Q267 142 263 200 Q261 234 253 246 Q200 263 147 246 Q139 234 137 200 Q133 142 140 97 Z" fill="url(#fab)" stroke="#7c8c6a" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M165 120 Q160 180 166 240" stroke="#86966f" stroke-width="1.6" fill="none" opacity=".45"/>
+  <path d="M235 120 Q240 180 234 240" stroke="#86966f" stroke-width="1.6" fill="none" opacity=".45"/>
+  <path d="M182 130 Q179 185 183 238" stroke="#c7d2b8" stroke-width="1.4" fill="none" opacity=".5"/>
+  <path d="M218 130 Q221 185 217 238" stroke="#c7d2b8" stroke-width="1.4" fill="none" opacity=".5"/>
+  <path d="M150 243 Q200 257 250 243" stroke="#768663" stroke-width="1.3" fill="none" opacity=".55" stroke-dasharray="3 3"/>
+  <path d="M176 84 Q200 94 224 84 Q200 76 176 84 Z" fill="#93a380"/>
+  <path d="M176 84 L200 113 L188 86 Q181 81 176 84 Z" fill="#c4d0b4" stroke="#7c8c6a" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M224 84 L200 113 L212 86 Q219 81 224 84 Z" fill="#c4d0b4" stroke="#7c8c6a" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M196 111 L196 246" stroke="#7c8c6a" stroke-width="1.4" opacity=".7"/>
+  <path d="M204 111 L204 246" stroke="#7c8c6a" stroke-width="1.4" opacity=".7"/>
+  <g fill="#f2eee0" stroke="#849372" stroke-width="1">
+    <circle cx="200" cy="126" r="3.4"/><circle cx="200" cy="150" r="3.4"/><circle cx="200" cy="174" r="3.4"/>
+    <circle cx="200" cy="198" r="3.4"/><circle cx="200" cy="222" r="3.4"/>
+  </g>
+  <path d="M160 105 Q150 170 158 235 Q173 244 188 246 Q177 175 182 108 Q170 104 160 105 Z" fill="#ffffff" opacity=".10"/>
+</svg>

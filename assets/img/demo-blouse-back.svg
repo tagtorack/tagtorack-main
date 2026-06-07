@@ -12,7 +12,18 @@
   </defs>
   <rect width="400" height="300" fill="url(#bgB)"/>
   <ellipse cx="200" cy="254" rx="128" ry="13" fill="#666f58" opacity=".18"/>
-
-  <!-- sleeves -->
   <path d="M146 90 L98 122 Q90 129 96 139 L114 162 Q120 169 129 163 L154 144 Z" fill="url(#slvB)" stroke="#768663" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M254 90 L302 122 Q310 129 304 139 L286 162 Q280 169 271 163 L24
+  <path d="M254 90 L302 122 Q310 129 304 139 L286 162 Q280 169 271 163 L246 144 Z" fill="url(#slvB)" stroke="#768663" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M150 88 Q172 99 200 99 Q228 99 250 88 L260 97 Q267 142 263 200 Q261 234 253 246 Q200 263 147 246 Q139 234 137 200 Q133 142 140 97 Z" fill="url(#fabB)" stroke="#768663" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M176 84 Q200 98 224 84 Q200 78 176 84 Z" fill="#8a9a78"/>
+  <rect x="196" y="92" width="8" height="7" rx="3" fill="#c4d0b4" stroke="#768663" stroke-width="1.2"/>
+  <path d="M141 112 Q200 128 259 112" stroke="#6e7e5c" stroke-width="1.8" fill="none" opacity=".75"/>
+  <path d="M141 116 Q200 132 259 116" stroke="#c7d2b8" stroke-width="1.2" fill="none" opacity=".5"/>
+  <path d="M200 130 L200 248" stroke="#6e7e5c" stroke-width="1.4" opacity=".55" stroke-dasharray="5 4"/>
+  <path d="M168 132 Q163 188 168 240" stroke="#7f8f6b" stroke-width="1.6" fill="none" opacity=".45"/>
+  <path d="M232 132 Q237 188 232 240" stroke="#7f8f6b" stroke-width="1.6" fill="none" opacity=".45"/>
+  <path d="M185 140 Q182 192 186 238" stroke="#c2cdb0" stroke-width="1.3" fill="none" opacity=".5"/>
+  <path d="M215 140 Q218 192 214 238" stroke="#c2cdb0" stroke-width="1.3" fill="none" opacity=".5"/>
+  <path d="M150 243 Q200 257 250 243" stroke="#6e7e5c" stroke-width="1.3" fill="none" opacity=".55" stroke-dasharray="3 3"/>
+  <path d="M240 108 Q250 175 242 236 Q227 245 212 247 Q222 178 218 110 Q230 106 240 108 Z" fill="#ffffff" opacity=".09"/>
+</svg>

@@ -81,9 +81,9 @@
 .demo-photo.captured .slot-label { opacity: 0; }
 .demo-photo.captured .cap-badge { opacity: 1; transform: none; }
 /* faux garment fields */
-.img-blouse  { background: #ebe8da url("/assets/img/demo-blouse-front.svg?v=2") center/cover no-repeat; }
-.img-blouse2 { background: #e8e5d6 url("/assets/img/demo-blouse-back.svg?v=2") center/cover no-repeat; }
-.img-tag     { background: #ebe8da url("/assets/img/demo-tag.svg?v=2") center/cover no-repeat; }
+.img-blouse  { background: #ebe8da url("/assets/img/demo-blouse-front.svg?v=3") center/cover no-repeat; }
+.img-blouse2 { background: #e8e5d6 url("/assets/img/demo-blouse-back.svg?v=3") center/cover no-repeat; }
+.img-tag     { background: #ebe8da url("/assets/img/demo-tag.svg?v=3") center/cover no-repeat; }
 
 /* card column */
 .demo-card { position: relative; display: flex; flex-direction: column; }
