@@ -69,19 +69,19 @@
             <div class="demo-scan" aria-hidden="true"></div>
             <div class="demo-card-top">
               <div class="title"><span class="chip violet"><span class="dot"></span>Draft</span><strong>Intake card</strong></div>
-              <div class="demo-conf"><div class="mono"><span>AI confidence</span><span>94%</span></div><div class="demo-conf-track"><div class="demo-conf-fill"></div></div></div>
+              <div class="demo-conf"><div class="mono"><span>AI confidence</span><span data-f="conf">95%</span></div><div class="demo-conf-track"><div class="demo-conf-fill"></div></div></div>
             </div>
             <div class="demo-fields">
-              <div class="demo-field"><span class="k">Brand</span><span class="v">Madewell</span></div>
-              <div class="demo-field"><span class="k">Category</span><span class="v">Women's · Blouse</span></div>
-              <div class="demo-field"><span class="k">Size</span><span class="v">M</span></div>
-              <div class="demo-field"><span class="k">Color</span><span class="v">Sage green</span></div>
-              <div class="demo-field"><span class="k">Material</span><span class="v">100% Tencel</span></div>
-              <div class="demo-field"><span class="k">Condition</span><span class="v">Excellent · gently used</span></div>
-              <div class="demo-field span-2"><span class="k">Possible flaws</span><span class="v"><span class="flag">⚑</span> Faint mark near left cuff — review</span></div>
+              <div class="demo-field"><span class="k">Brand</span><span class="v" data-f="brand">REISS</span></div>
+              <div class="demo-field"><span class="k">Category</span><span class="v" data-f="category">Women's · Blouse</span></div>
+              <div class="demo-field"><span class="k">Size</span><span class="v" data-f="size">S</span></div>
+              <div class="demo-field"><span class="k">Color</span><span class="v" data-f="color">Cream</span></div>
+              <div class="demo-field"><span class="k">Material</span><span class="v" data-f="material">Silk-blend satin</span></div>
+              <div class="demo-field"><span class="k">Condition</span><span class="v" data-f="condition">Excellent · gently used</span></div>
+              <div class="demo-field span-2"><span class="k">Possible flaws</span><span class="v"><span class="flag">⚑</span> <span data-f="flaw">No flaws detected — verify at drop-off</span></span></div>
             </div>
-            <div class="demo-suggestion"><span class="chip ok">Recommend · Consign</span><span class="price">$24–$32 <small>suggested</small></span></div>
-            <div class="demo-pos"><span class="k">POS-ready listing</span><div class="pos-title">Madewell Sage Tencel Blouse — Women's M, EUC</div><div class="pos-desc">Soft sage-green Tencel blouse by Madewell, size M. Excellent used condition; relaxed drape, button front. Minor mark near left cuff noted.</div></div>
+            <div class="demo-suggestion"><span class="chip ok" data-f="rec">Recommend · Consign</span><span class="price"><span data-f="price">$45–$60</span> <small>suggested</small></span></div>
+            <div class="demo-pos"><span class="k">POS-ready listing</span><div class="pos-title" data-f="posTitle">REISS Cream Silk-Blend Blouse — Women's S, EUC</div><div class="pos-desc" data-f="posDesc">Elegant cream silk-blend blouse by REISS, size S. Excellent condition; collared V-neck, soft drape, curved hem.</div></div>
             <div class="demo-approval">
               <div class="ap-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> AI recommends — a manager makes the final call</div>
               <div class="ap-btns"><button class="ap-btn ap-approve" data-demo-approve>Approve</button><button class="ap-btn ap-adjust">Adjust</button><button class="ap-btn ap-pass">Pass</button></div>
@@ -348,6 +348,6 @@
   </div>
 </footer>
 
-<script src="assets/js/site.js"></script>
+<script src="assets/js/site.js?v=2"></script>
 </body>
 </html>
