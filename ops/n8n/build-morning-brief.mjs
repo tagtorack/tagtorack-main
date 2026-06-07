@@ -132,6 +132,32 @@ if (stripeKey) {
   } catch (e) { rev = { ok: false, err: String(e.statusCode || e).slice(0, 120) }; }
 }
 
+// ---- inbox (IMAP; optional — set IMAP_HOST/IMAP_USER/IMAP_PASS in n8n; needs imapflow + NODE_FUNCTION_ALLOW_EXTERNAL=imapflow) ----
+let inbox = { ok: false, err: '' };
+if ($env.IMAP_HOST && $env.IMAP_USER) {
+  try {
+    const { ImapFlow } = require('imapflow');
+    const client = new ImapFlow({ host: $env.IMAP_HOST, port: Number($env.IMAP_PORT || 993), secure: true,
+      auth: { user: $env.IMAP_USER, pass: $env.IMAP_PASS }, logger: false });
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const since = new Date(Date.now() - 24 * 3600 * 1000);
+      const all = (await client.search({ since })) || [];
+      const unseen = (await client.search({ since, seen: false })) || [];
+      const recent = [];
+      for await (const msg of client.fetch({ since }, { envelope: true })) {
+        if (recent.length < 5) {
+          const fr = msg.envelope && msg.envelope.from && msg.envelope.from[0];
+          recent.push({ from: (fr && (fr.name || fr.address)) || '?', subject: (msg.envelope && msg.envelope.subject) || '(no subject)' });
+        }
+      }
+      inbox = { ok: true, total: all.length, unread: unseen.length, recent };
+    } finally { lock.release(); }
+    await client.logout();
+  } catch (e) { inbox = { ok: false, err: String((e && e.message) || e).slice(0, 120) }; }
+}
+
 // ---- recommendations (rule-based) ----
 const recs = [];
 if (down.length)     recs.push('Investigate: ' + down.map(d => d.label + ' (' + (d.status||'no response') + ')').join(', ') + ' not responding.');
@@ -144,6 +170,7 @@ if (n(m.q_processing) > 0)      recs.push(n(m.q_processing) + ' submission(s) mi
 if (n(m.new_24h) === 0)         recs.push('No new submissions in 24h — top of funnel is quiet. Consider re-sharing merchant seller links.');
 if (dev.ok && dev.openPRs > 0)  recs.push(dev.openPRs + ' open pull request(s) awaiting review/merge.');
 if (dev.ok && dev.lastAgeH != null && dev.lastAgeH < 3) recs.push('Code shipped to main ' + dev.lastAgeH + 'h ago — main auto-deploys, so confirm the live site looks right (health above).');
+if (inbox.ok && inbox.unread > 0) recs.push(inbox.unread + ' unread email(s) to contact@ since yesterday — triage them.');
 if (n(m.open_leads) > 0)        recs.push(n(m.open_leads) + ' open lead(s)' + (n(m.new_leads_24h) > 0 ? (', ' + n(m.new_leads_24h) + ' new in 24h — respond promptly.') : ' in the pipeline — keep them moving.'));
 if (rev.ok && rev.count > 0)    recs.push(rev.count + ' payment(s) in 24h totalling $' + Math.round(rev.gross) + '.');
 if (!recs.length)               recs.push('Nothing needs action — pipeline and site are healthy. Good morning.');
@@ -208,6 +235,10 @@ const html =
 
   section('Working') + '<p style="margin:6px 0;font-size:13px">' + checkLine(up, '#1a8f3c', '&#10003;') + '</p>' +
   section('Broken / degraded') + '<p style="margin:6px 0;font-size:13px">' + checkLine(down.concat(degraded), '#c0392b', '&#10007;') + '</p>' +
+
+  (inbox.ok ? (section('Overnight inbox') +
+    '<p style="margin:6px 0;font-size:13px"><b>' + n(inbox.total) + '</b> email(s) in 24h &middot; <b>' + n(inbox.unread) + '</b> unread' +
+    (inbox.recent && inbox.recent.length ? '<br><span style="color:#888">' + inbox.recent.map(r => esc(r.from) + ' — ' + esc(r.subject)).join('<br>') + '</span>' : '') + '</p>') : '') +
 
   section('Recommendations') + '<ul style="margin:6px 0;padding-left:18px">' + recs.map(li).join('') + '</ul>' +
 
