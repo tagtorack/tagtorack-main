@@ -93,6 +93,27 @@ for (const c of checks) {
   else degraded.push(row);
 }
 
+// ---- code & deploy (GitHub API; main auto-deploys to prod via Cloudflare Pages) ----
+const ghRepo = $env.GITHUB_REPO || 'tagtorack/tagtorack-main';
+const ghTok = $env.GITHUB_TOKEN || $env.GH_TOKEN || '';
+let dev = { ok: false, err: '' };
+if (ghTok) {
+  try {
+    const hdr = { 'Authorization': 'Bearer ' + ghTok, 'Accept': 'application/vnd.github+json', 'User-Agent': 'tagtorack-morning-brief' };
+    const commits = await this.helpers.httpRequest({ method: 'GET', url: 'https://api.github.com/repos/' + ghRepo + '/commits?sha=main&per_page=20', headers: hdr, json: true, timeout: 12000 });
+    const prs = await this.helpers.httpRequest({ method: 'GET', url: 'https://api.github.com/repos/' + ghRepo + '/pulls?state=open&per_page=10', headers: hdr, json: true, timeout: 12000 });
+    const top = (commits && commits[0]) || {};
+    const since = Date.now() - 24 * 3600 * 1000;
+    const commits24 = (commits || []).filter(c => c.commit && new Date(c.commit.author.date).getTime() > since).length;
+    const ageH = top.commit ? Math.round((Date.now() - new Date(top.commit.author.date).getTime()) / 3600000) : null;
+    dev = { ok: true,
+      lastMsg: top.commit ? String(top.commit.message).split('\\n')[0] : '(none)',
+      lastAuthor: top.commit ? top.commit.author.name : '',
+      lastAgeH: ageH, commits24,
+      openPRs: (prs || []).length, prTitles: (prs || []).slice(0, 3).map(p => '#' + p.number + ' ' + p.title) };
+  } catch (e) { dev = { ok: false, err: String(e.statusCode || e).slice(0, 120) }; }
+}
+
 // ---- recommendations (rule-based) ----
 const recs = [];
 if (down.length)     recs.push('Investigate: ' + down.map(d => d.label + ' (' + (d.status||'no response') + ')').join(', ') + ' not responding.');
@@ -103,6 +124,8 @@ if (n(m.q_merchant_review) > 0) recs.push(n(m.q_merchant_review) + ' item(s) wai
 if (n(m.q_pending_uploads) > 3) recs.push(n(m.q_pending_uploads) + ' submissions stuck awaiting photos — consider a reminder to those sellers.');
 if (n(m.q_processing) > 0)      recs.push(n(m.q_processing) + ' submission(s) mid-AI-review — should clear on their own; flag if still here tomorrow.');
 if (n(m.new_24h) === 0)         recs.push('No new submissions in 24h — top of funnel is quiet. Consider re-sharing merchant seller links.');
+if (dev.ok && dev.openPRs > 0)  recs.push(dev.openPRs + ' open pull request(s) awaiting review/merge.');
+if (dev.ok && dev.lastAgeH != null && dev.lastAgeH < 3) recs.push('Code shipped to main ' + dev.lastAgeH + 'h ago — main auto-deploys, so confirm the live site looks right (health above).');
 if (!recs.length)               recs.push('Nothing needs action — pipeline and site are healthy. Good morning.');
 
 // ---- compose HTML ----
@@ -148,6 +171,15 @@ const html =
 
   section('Business at a glance') +
   statRow([ stat('Merchants', n(m.merchants_total)), stat('Sellers', n(m.sellers_total)), stat('Approved resale 7d', money(m.approved_resale_7d)), stat('Gemini pro/flash today', n(m.gemini_pro_today) + '/' + n(m.gemini_flash_today)) ]) +
+
+  section('Code & deploy') +
+  (dev.ok
+    ? '<p style="margin:6px 0;font-size:13px">Last commit on <b>main</b>: ' + esc(dev.lastMsg) +
+        ' <span style="color:#aaa">— ' + esc(dev.lastAuthor) + (dev.lastAgeH != null ? (', ' + dev.lastAgeH + 'h ago') : '') + '</span><br>' +
+        esc(dev.commits24) + ' commit(s) in 24h &middot; <b>' + esc(dev.openPRs) + '</b> open PR(s)' +
+        (dev.prTitles && dev.prTitles.length ? '<br><span style="color:#888">' + dev.prTitles.map(esc).join('<br>') + '</span>' : '') +
+        '<br><span style="color:#aaa">main auto-deploys to production via Cloudflare Pages.</span></p>'
+    : '<p style="margin:6px 0;font-size:13px;color:#aaa">GitHub status unavailable' + (dev.err ? (' (' + esc(dev.err) + ')') : ' — set GITHUB_TOKEN in n8n') + '</p>') +
 
   section('Working') + '<p style="margin:6px 0;font-size:13px">' + checkLine(up, '#1a8f3c', '&#10003;') + '</p>' +
   section('Broken / degraded') + '<p style="margin:6px 0;font-size:13px">' + checkLine(down.concat(degraded), '#c0392b', '&#10007;') + '</p>' +

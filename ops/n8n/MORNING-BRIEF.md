@@ -14,6 +14,7 @@ app already uses. No cloud scheduler, no Microsoft/Google account, no desktop ap
   awaiting seller photos, mid-AI-review, upcoming drop-offs.
 - **Last 24 hours** — new submissions, new sellers, AI pass / fail / borderline counts.
 - **Business at a glance** — merchants, sellers, approved resale value (7d), Gemini usage today.
+- **Code & deploy** — latest `main` commit, commits in last 24h, and open pull requests (via the GitHub API).
 - **Working** / **Broken or degraded** — live HTTP health check of every public page + the portal & admin.
 - **Recommendations** — rule-based, prioritised (what to do first today).
 
@@ -31,6 +32,7 @@ app already uses. No cloud scheduler, no Microsoft/Google account, no desktop ap
 - `EMAIL_TRANSPORT=resend` — in dev this defaults to Mailpit instead.
 - `FROM_EMAIL` — e.g. `Tag to Rack <noreply@tagtorack.com>` (must be on a Resend-verified domain).
 - Optional: `MORNING_BRIEF_TO` (default `contact@tagtorack.com`), `SITE_BASE` (default `https://tagtorack.com`).
+- Optional: `GITHUB_TOKEN` (or `GH_TOKEN`) — enables the **Code & deploy** section; a fine-grained token with `contents:read` + `pull_requests:read` is enough. `GITHUB_REPO` defaults to `tagtorack/tagtorack-main`.
 
 ## Deploy (from repo root, on the machine running n8n)
 
