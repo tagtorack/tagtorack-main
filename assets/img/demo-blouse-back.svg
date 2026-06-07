@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Sage green blouse, back">
+  <rect width="200" height="200" fill="#cfd9c4"/>
+  <ellipse cx="100" cy="181" rx="58" ry="9" fill="#8a9a78" opacity=".33"/>
+  <!-- body + sleeves (back, no placket) -->
+  <path d="M76 46 C84 53 116 53 124 46 L151 63 L138 90 L129 81 L131 159 C100 171 69 159 69 159 L71 81 L62 90 L49 63 Z"
+        fill="#9fae90" stroke="#83926f" stroke-width="2.6" stroke-linejoin="round"/>
+  <!-- back neckline -->
+  <path d="M84 48 C92 56 108 56 116 48 C108 52 92 52 84 48 Z" fill="#8a9a78"/>
+  <!-- yoke seam across shoulders -->
+  <path d="M70 72 C100 82 100 82 130 72" stroke="#83926f" stroke-width="1.8" fill="none" opacity=".75"/>
+  <!-- center back seam -->
+  <path d="M100 60 L100 160" stroke="#83926f" stroke-width="1.6" opacity=".6"/>
+  <!-- drape folds -->
+  <path d="M84 96 C88 120 88 140 86 158" stroke="#8a9a78" stroke-width="1.5" fill="none" opacity=".55"/>
+  <path d="M116 96 C112 120 112 140 114 158" stroke="#8a9a78" stroke-width="1.5" fill="none" opacity=".55"/>
+</svg>
