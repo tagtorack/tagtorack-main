@@ -57,6 +57,9 @@ services:
       # crypto: R2 SigV4 presign (WF-5 photo fetch) + HMAC verify in Code nodes.
       NODE_FUNCTION_ALLOW_BUILTIN: "crypto"
       TT_AUTOSEND_ENABLED: ${TT_AUTOSEND_ENABLED}
+      # Approval digest: batch seller approval emails (see ops/n8n/NOTIFY-DIGEST.md)
+      TT_DIGEST_NOTIFY: ${TT_DIGEST_NOTIFY:-false}
+      TT_NOTIFY_QUIET_MIN: ${TT_NOTIFY_QUIET_MIN:-30}
       # Phase 2 — opt-in SMS drop-off notifications (WF-M4). Defaults OFF: leave
       # TT_SMS_ENABLED unset/false until A2P 10DLC registration is approved and the
       # SMS path is verified end-to-end. Twilio creds live in ops/.env (gitignored);
