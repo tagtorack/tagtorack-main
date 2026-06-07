@@ -1,0 +1,34 @@
+# ops/n8n/n8n-env.snippet.example
+# Ready-to-paste environment for the Morning Brief's optional sections.
+# Add to the n8n service environment (ops/docker-compose.yml -> n8n `environment:`
+# block, or the .env it consumes), fill the X values, then restart n8n.
+# No real secrets live in this file — it is safe to commit.
+
+# --- already required (these should exist if WF-5 emails work in prod) ---
+# RESEND_API_KEY=re_xxxxxxxxxxxxxxxx
+# EMAIL_TRANSPORT=resend
+# FROM_EMAIL=Tag to Rack <noreply@tagtorack.com>
+
+# --- Code & deploy section -------------------------------------------------
+# Reuse the fine-grained GitHub token already in your .dev.vars (`token=` line),
+# or mint a new one scoped to contents:read + pull_requests:read.
+GITHUB_TOKEN=github_pat_XXXXXXXXXXXXXXXXXXXX
+
+# --- Revenue section (skip until you charge via Stripe) --------------------
+# Use a RESTRICTED read-only key (Stripe dashboard -> Developers -> API keys).
+STRIPE_API_KEY=rk_live_XXXXXXXXXXXXXXXXXXXX
+
+# --- Overnight inbox section (IMAP for contact@tagtorack.com) --------------
+IMAP_HOST=imap.yourmailprovider.com
+IMAP_PORT=993
+IMAP_USER=contact@tagtorack.com
+IMAP_PASS=XXXXXXXXXXXXXXXX
+# The inbox section also needs the imapflow package available to n8n Code nodes:
+#   1) npm i imapflow                              (inside the n8n container/env)
+#   2) NODE_FUNCTION_ALLOW_EXTERNAL=imapflow       (env var on the n8n service)
+# Without IMAP_* set, the brief simply omits the inbox section — nothing breaks.
+
+# --- optional overrides (defaults shown) ------------------------------------
+# MORNING_BRIEF_TO=contact@tagtorack.com
+# SITE_BASE=https://tagtorack.com
+# GITHUB_REPO=tagtorack/tagtorack-main
