@@ -1,3 +1,6 @@
+-- Run against the app DB (fix: was implicitly using the default n8n DB on fresh init).
+\connect tagtorack_app
+
 -- 06-notify-digest.sql — approval-email digest (one email per seller, not per item)
 -- Adds the "has this approval been included in a digest email?" marker.
 ALTER TABLE seller_submissions ADD COLUMN IF NOT EXISTS approval_notified_at TIMESTAMPTZ;
