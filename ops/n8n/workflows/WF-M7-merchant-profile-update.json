@@ -84,6 +84,19 @@
         660,
         0
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst secret = $env.INTAKE_WEBHOOK_SECRET || '';\nconst item = ($input.first() && $input.first().json) || {};\nconst h = item.headers || {};\nconst sig = String(h['x-ttr-signature'] || '');\nconst ts = String(h['x-ttr-timestamp'] || '');\nconst body = item.body;\n// Reproduce exactly what the Pages function signed: JSON.stringify(payload).\n// n8n parses the JSON body into an object preserving key order, so re-stringify\n// is byte-identical for compact JSON. If a string slipped through, sign as-is.\nconst raw = (typeof body === 'string') ? body : JSON.stringify(body == null ? {} : body);\nlet ok = false;\nif (secret && sig && /^[0-9]+$/.test(ts)) {\n  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(ts + '.' + raw).digest('hex');\n  const a = Buffer.from(sig);\n  const b = Buffer.from(expected);\n  const fresh = Math.abs(Date.now() - Number(ts)) < 300000; // 5 min replay window\n  ok = a.length === b.length && crypto.timingSafeEqual(a, b) && fresh;\n}\nif (!ok) { throw new Error('unauthorized'); }\nreturn $input.all();"
+      },
+      "id": "verify-sig",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        0
+      ]
     }
   ],
   "connections": {
@@ -91,7 +104,7 @@
       "main": [
         [
           {
-            "node": "Prep",
+            "node": "Verify Signature",
             "type": "main",
             "index": 0
           }
@@ -125,6 +138,17 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Signature": {
+      "main": [
+        [
+          {
+            "node": "Prep",
             "type": "main",
             "index": 0
           }

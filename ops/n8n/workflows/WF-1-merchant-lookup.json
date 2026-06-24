@@ -1,37 +1,37 @@
 {
-  "name": "WF-A5 admin-merchants",
+  "name": "WF-1 merchant-lookup",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "admin/merchants",
+        "path": "merchant/lookup",
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "w",
+      "id": "w1",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -200,
+        0,
         0
       ],
-      "webhookId": "admin-merchants-wh"
+      "webhookId": "merchant-lookup-wh"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH inp AS (SELECT $1::jsonb AS d)\nSELECT m.id::text AS merchant_id, m.slug, m.display_name, m.contact_email, m.dropoff_address,\n       m.dropoff_hours, m.calcom_event_url, m.brand_color, m.public_intro, m.status, m.rule_set,\n       (SELECT count(*) FROM seller_submissions s WHERE s.merchant_id=m.id) AS total_submissions,\n       (SELECT count(*) FROM seller_submissions s WHERE s.merchant_id=m.id AND s.status='merchant_review') AS pending\nFROM merchants m, inp\nWHERE (NULLIF(inp.d->>'slug','') IS NULL OR m.slug = inp.d->>'slug')\nORDER BY m.display_name;",
+        "query": "SELECT slug, display_name, public_intro, brand_color, logo_url, accepted_categories, brand_allowlist, rule_set, contact_email FROM merchants WHERE slug = $1 AND status = 'active' LIMIT 1",
         "options": {
-          "queryReplacement": "={{ JSON.stringify($json.body || {}) }}"
+          "queryReplacement": "={{ $json.body.slug }}"
         }
       },
-      "id": "pg",
-      "name": "List",
+      "id": "pg1",
+      "name": "Get merchant",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        0,
+        220,
         0
       ],
       "credentials": {
@@ -44,31 +44,29 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all().map(i=>i.json).filter(r=>r && r.merchant_id);\nreturn [{ json: { statusCode: 200, body: { ok:true, merchants: rows } } }];"
+        "jsCode": "const rows=$input.all().map(i=>i.json).filter(r=>r&&r.slug);\nreturn [{json: rows.length ? {found:true, merchant:rows[0]} : {found:false}}];"
       },
-      "id": "shape",
+      "id": "c1",
       "name": "Shape",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
+        440,
         0
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json.body }}",
-        "options": {
-          "responseCode": "={{ $json.statusCode }}"
-        }
+        "responseBody": "={{ $json.found ? { ok:true, merchant:$json.merchant } : { ok:false, error:\"merchant_not_found\" } }}",
+        "options": {}
       },
-      "id": "r",
+      "id": "r1",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        440,
+        660,
         0
       ]
     },
@@ -81,7 +79,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -40,
+        160,
         0
       ]
     }
@@ -98,7 +96,7 @@
         ]
       ]
     },
-    "List": {
+    "Get merchant": {
       "main": [
         [
           {
@@ -124,7 +122,7 @@
       "main": [
         [
           {
-            "node": "List",
+            "node": "Get merchant",
             "type": "main",
             "index": 0
           }
