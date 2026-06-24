@@ -12,6 +12,25 @@
     window.addEventListener("scroll", onScroll, { passive: true });
   }
 
+  /* ---------- Sticky mobile CTA (show after hero, hide near footer) ---------- */
+  const mobileCta = document.querySelector("[data-mobile-cta]");
+  if (mobileCta) {
+    const hero = document.querySelector(".hero");
+    const footer = document.querySelector(".site-footer");
+    const onCtaScroll = () => {
+      const past = hero ? window.scrollY > hero.offsetHeight - 80 : window.scrollY > 480;
+      let nearFooter = false;
+      if (footer) {
+        const fr = footer.getBoundingClientRect();
+        nearFooter = fr.top < (window.innerHeight || 0) - 40;
+      }
+      mobileCta.classList.toggle("show", past && !nearFooter);
+    };
+    onCtaScroll();
+    window.addEventListener("scroll", onCtaScroll, { passive: true });
+    window.addEventListener("resize", onCtaScroll);
+  }
+
   /* ---------- Mobile nav ---------- */
   const toggle = document.querySelector(".nav-toggle");
   if (toggle) {
