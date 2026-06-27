@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://tagtorack.com/</loc></url>
-  <url><loc>https://tagtorack.com/how-it-works</loc></url>
-  <url><loc>https://tagtorack.com/features</loc></url>
-  <url><loc>https://tagtorack.com/value-add</loc></url><url><loc>https://tagtorack.com/pricing</loc></url>
-  <url><loc>https://tagtorack.com/demo</loc></url>
-  <url><loc>https://tagtorack.com/contact</loc></url>
-  <url><loc>https://tagtorack.com/privacy</loc></url>
-  <url><loc>https://tagtorack.com/terms</loc></url>
+  <url><loc>https://tagtorack.com/</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/how-it-works</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/features</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/value-add</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/pricing</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/demo</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/contact</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/privacy</loc><lastmod>2026-06-27</lastmod></url>
+  <url><loc>https://tagtorack.com/terms</loc><lastmod>2026-06-27</lastmod></url>
 </urlset>

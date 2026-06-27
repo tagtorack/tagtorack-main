@@ -1,0 +1,9 @@
+# TagtoRack — https://tagtorack.com
+User-agent: *
+Allow: /
+
+# Seller portal app pages carry no SEO value
+Disallow: /submit/portal
+Disallow: /submit/portal.html
+
+Sitemap: https://tagtorack.com/sitemap.xml
